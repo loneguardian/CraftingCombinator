@@ -77,7 +77,7 @@ function _M.create(entity)
 		enabled = true,
 		last_recipe = false,
 		last_assembler_recipe = false,
-		last_combinator_mode = 'w'
+		read_mode_cb = false
 	}, combinator_mt)
 	
 	combinator.module_chest.destructible = false
@@ -196,21 +196,20 @@ function _M:update()
 		self.assembler.active = true
 
 		if self.settings.mode == 'w' then
-			if self.last_combinator_mode ~= "w" then
+			if self.read_mode_cb then
 				params:clear()
 				self.control_behavior.parameters = params.data
-				self.last_combinator_mode = "w"
+				self.read_mode_cb = false
 			end
 			self:set_recipe()
-		end
-		if self.settings.mode == 'r' then
-			if self.last_combinator_mode ~= "r" then
-				self.last_combinator_mode = "r"
-			end
+		--elseif self.settings.mode == 'r' then
+		else
+			self.read_mode_cb = true
 			params:clear()
 			if self.settings.read_recipe then self:read_recipe(params.data); end
 			if self.settings.read_speed then self:read_speed(params.data); end
 			if self.settings.read_machine_status then self:read_machine_status(params.data); end
+			-- TODO: add setting for read_machine_crafting_progress
 			self.control_behavior.parameters = params.data
 		end
 	end
