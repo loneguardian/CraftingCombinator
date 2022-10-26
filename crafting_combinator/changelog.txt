@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 100.0.1
+Date: ????
+  Info:
+    - Xeraph's edit (based on Crafting Combinator 0.16.3)
+  Bugfixes:
+    - Fixed possible duping if an incorrect recipe is sent to cc
+  Features:
+    - Craft at least N before changing recipe
+  Changes:
+    - Optimized idle performance
+---------------------------------------------------------------------------------------------------
 Version: 0.16.3
 Date: 11. 12. 2021
   Changes:
