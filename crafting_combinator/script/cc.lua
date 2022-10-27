@@ -1,6 +1,5 @@
 local util = require 'script.util'
 local gui = require 'script.gui'
-local settings_parser = require 'script.settings-parser'
 local recipe_selector = require 'script.recipe-selector'
 local config = require 'config'
 local signals = require 'script.signals'
@@ -27,22 +26,6 @@ for name, signal in pairs(config.MACHINE_STATUS_SIGNALS) do
 		STATUS_SIGNALS[defines.entity_status[name]] = signal
 	end
 end
-
-
-_M.settings_parser = settings_parser {
-	chest_position = {'c', 'int'},
-	mode = {'m', 'string'},
-	discard_items = {'d', 'bool'},
-	discard_fluids = {'f', 'bool'},
-	empty_inserters = {'i', 'bool'},
-	craft_until_zero = {'z', 'bool'},
-	craft_n_before_switch = {'s_cn', 'int'},
-	read_recipe = {'r', 'bool'},
-	read_speed = {'s', 'bool'},
-	read_machine_status = {'st', 'bool'},
-	wait_for_output_to_clear = {'wo', 'bool'},
-}
-
 
 -- General housekeeping
 
@@ -71,7 +54,7 @@ function _M.create(entity)
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		settings = _M.settings_parser:read_or_default(entity, util.deepcopy(config.CC_DEFAULT_SETTINGS)),
+		settings = util.deepcopy(config.CC_DEFAULT_SETTINGS),
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -164,7 +147,6 @@ function _M.destroy(entity, player_index)
 	-- Notify other combinators that the chest was destroyed
 	_M.update_chests(entity.surface, combinator.module_chest, true)
 	if player_index then combinator.module_chest.destroy(); end
-	settings_parser.destroy(entity)
 	signals.cache.drop(entity)
 	
 	global.cc.data[unit_number] = nil
@@ -273,15 +255,12 @@ function _M:on_checked_changed(name, state, element)
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
 	self:update_disabled_textboxes(gui.get_root(element))
-	
-	self.settings_parser:update(self.entity, self.settings)
 end
 
 function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
 		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
-		self.settings_parser:update(self.entity, self.settings)
 	end
 end
 
@@ -321,7 +300,6 @@ end
 function _M:on_selection_changed(name, selected)
 	if name == 'title:chest-position:value' then
 		self.settings.chest_position = selected
-		self.settings_parser:update(self.entity, self.settings)
 		self:find_chest()
 	end
 end
@@ -653,7 +631,6 @@ end
 
 
 function _M:update_inner_positions()
-	settings_parser.move_entity(self.entity, self.module_chest.position)
 	self.module_chest.teleport(self.entity.position)
 end
 

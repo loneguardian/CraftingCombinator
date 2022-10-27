@@ -6,7 +6,6 @@ local rc_control = require 'script.rc'
 local signals = require 'script.signals'
 local util = require 'script.util'
 local gui = require 'script.gui'
-local settings_parser = require 'script.settings-parser'
 
 
 local cc_rate, rc_rate = 1, 1
@@ -68,18 +67,6 @@ local function on_built(event)
 	if entity.name == config.RC_NAME then rc_control.create(entity); end
 	if entity.type == 'assembling-machine' then cc_control.update_assemblers(entity.surface, entity); end
 	if util.CONTAINER_TYPES[entity.type] then cc_control.update_chests(entity.surface, entity); end
-	
-	if entity.type == 'entity-ghost' and entity.ghost_name == config.SETTINGS_ENTITY_NAME then
-		if count_entities_at(entity, config.SETTINGS_ENTITY_NAME) > 0 then entity.destroy()
-		else entity.silent_revive(); end
-		return
-	end
-	if entity.name == config.SETTINGS_ENTITY_NAME then
-		if count_entities_at(entity) > 1 then
-			entity.destroy()
-			return
-		end
-	end
 end
 
 local function on_destroyed(event)
@@ -91,10 +78,6 @@ local function on_destroyed(event)
 	if entity.name == config.RC_NAME then rc_control.destroy(entity); end
 	if entity.type == 'assembling-machine' then cc_control.update_assemblers(entity.surface, entity, true); end
 	if util.CONTAINER_TYPES[entity.type] then cc_control.update_chests(entity.surface, entity, true); end
-	
-	if entity.type == 'entity-ghost' and (entity.ghost_name == config.CC_NAME or entity.ghost_name == config.RC_NAME) then
-		settings_parser.destroy(entity)
-	end
 end
 
 
@@ -136,7 +119,6 @@ script.on_event(defines.events.on_entity_settings_pasted, function(event)
 	else return; end
 	
 	destination.settings = util.deepcopy(source.settings)
-	destination.settings_parser:update(destination.entity, destination.settings)
 	if destination.entity.name == config.RC_NAME then destination:update(true)
 	elseif destination.entity.name == config.CC_NAME then destination:copy(source); end
 end)

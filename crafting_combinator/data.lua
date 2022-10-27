@@ -101,37 +101,6 @@ data:extend {
 		order = 'z-'..cc_item.order, -- For some reason the z- prefix is added to auto-generated order strings
 	},
 	{
-		type = 'item',
-		name = config.SETTINGS_ENTITY_NAME,
-		flags = {'hidden'},
-		stack_size = 1,
-		place_result = config.SETTINGS_ENTITY_NAME,
-		icon = '__base__/graphics/icons/blueprint.png',
-		icon_size = 32,
-	},
-	{
-		type = 'programmable-speaker',
-		name = config.SETTINGS_ENTITY_NAME,
-		flags = {'placeable-off-grid', 'placeable-neutral', 'player-creation', 'not-deconstructable', 'not-upgradable'},
-		collision_mask = {},
-		collision_box = cc.collision_box,
-		selection_box = {{0, 0}, {0, 0}},
-		sprite = trans,
-		icon = '__base__/graphics/icons/blueprint.png',
-		icon_size = 32,
-		
-		minable = {
-			result = config.SETTINGS_ENTITY_NAME,
-			mining_time = 0,
-		},
-		
-		energy_source = { type = 'void' },
-		energy_usage_per_tick = '1W',
-		
-		instruments = {},
-		maximum_polyphony = 0,
-	},
-	{
 		type = 'constant-combinator',
 		name = config.RC_PROXY_NAME,
 		flags = {'placeable-off-grid'},
