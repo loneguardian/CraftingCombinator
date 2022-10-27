@@ -17,7 +17,7 @@ late_migrations['100.0.0'] = function(changes)
             unstick_at_tick = 0
         }
 
-        combinator.settings.craft_n_before_switch = 0
+        combinator.settings.craft_n_before_switch = 1
     end
 
     for _, combinator in pairs(global.rc.data) do
