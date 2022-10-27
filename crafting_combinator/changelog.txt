@@ -1,14 +1,20 @@
 ---------------------------------------------------------------------------------------------------
-Version: 100.0.1
+Version: 100.0.0
 Date: ????
   Info:
     - Xeraph's edit (based on Crafting Combinator 0.16.3)
   Bugfixes:
-    - Fixed possible duping if an incorrect recipe is sent to cc
+    - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
   Features:
-    - Craft at least N before changing recipe
+    - New sticky behaviour - Craft-n-before-switch:
+      - This new feature addresses the changing or flip-flopping of recipes due to the loss of signal caused by crafting machine buffering materials (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
+      - This is how it currently works: if a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any recipe change
+      - By default a new cc has a Craft-1-before-switch setting
+  Locale:
+    - Fixed duplicate key for cs.cfg
+    - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip'
   Changes:
-    - Optimized idle performance
+    - Optimized idle performance (https://github.com/theRustyKnife/CraftingCombinator/pull/71)
 ---------------------------------------------------------------------------------------------------
 Version: 0.16.3
 Date: 11. 12. 2021
