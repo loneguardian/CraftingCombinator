@@ -36,6 +36,7 @@ _M.settings_parser = settings_parser {
 	discard_fluids = {'f', 'bool'},
 	empty_inserters = {'i', 'bool'},
 	craft_until_zero = {'z', 'bool'},
+	craft_n_before_switch = {'s_cn', 'int'},
 	read_recipe = {'r', 'bool'},
 	read_speed = {'s', 'bool'},
 	read_machine_status = {'st', 'bool'},
@@ -77,7 +78,12 @@ function _M.create(entity)
 		enabled = true,
 		last_recipe = false,
 		last_assembler_recipe = false,
-		read_mode_cb = false
+		read_mode_cb = false,
+		sticky = false,
+		allow_sticky = true,
+		craft_n_before_switch = {
+			unstick_at_tick = 0
+		}
 	}, combinator_mt)
 	
 	combinator.module_chest.destructible = false
@@ -234,14 +240,19 @@ function _M:open(player_index)
 			gui.checkbox('discard-items', self.settings.discard_items),
 			gui.checkbox('discard-fluids', self.settings.discard_fluids),
 			gui.checkbox('empty-inserters', self.settings.empty_inserters),
-			gui.checkbox('craft-until-zero', self.settings.craft_until_zero, {tooltip = true}),
 			gui.checkbox('read-recipe', self.settings.read_recipe),
 			gui.checkbox('read-speed', self.settings.read_speed),
 			gui.checkbox('read-machine-status', self.settings.read_machine_status),
+		},
+		gui.section {
+			name = 'sticky',
+			gui.checkbox('craft-until-zero', self.settings.craft_until_zero, {tooltip = true}),
+			gui.number_picker('craft-n-before-switch', self.settings.craft_n_before_switch)
 		}
 	}):open(player_index)
 	
 	self:update_disabled_checkboxes(root)
+	self:update_disabled_textboxes(root)
 end
 
 function _M:on_checked_changed(name, state, element)
@@ -255,30 +266,56 @@ function _M:on_checked_changed(name, state, element)
 			end
 		end
 	end
-	if category == 'misc' then self.settings[name] = state; end
+	if category == 'misc' or category == 'sticky' then self.settings[name] = state; end
 	if name == 'craft_until_zero' and self.settings.craft_until_zero then
 		self.last_recipe = nil
 	end
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
+	self:update_disabled_textboxes(gui.get_root(element))
 	
 	self.settings_parser:update(self.entity, self.settings)
+end
+
+function _M:on_text_changed(name, text)
+	if name == 'sticky:craft-n-before-switch:value' then
+		self.sticky = false
+		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
+		self.settings_parser:update(self.entity, self.settings)
+	end
 end
 
 function _M:update_disabled_checkboxes(root)
 	self:disable_checkbox(root, 'misc:discard-items', 'w')
 	self:disable_checkbox(root, 'misc:discard-fluids', 'w')
 	self:disable_checkbox(root, 'misc:empty-inserters', 'w')
-	self:disable_checkbox(root, 'misc:craft-until-zero', 'w')
+	self:disable_checkbox(root, 'sticky:craft-until-zero', 'w')
 	self:disable_checkbox(root, 'misc:wait-for-output-to-clear', 'w')
 	self:disable_checkbox(root, 'misc:read-recipe', 'r')
 	self:disable_checkbox(root, 'misc:read-speed', 'r')
 	self:disable_checkbox(root, 'misc:read-machine-status', 'r')
 end
 
+function _M:update_disabled_textboxes(root)
+	self:disable_textbox(root, 'sticky:craft-n-before-switch', 'w')
+end
+
 function _M:disable_checkbox(root, name, mode)
 	local checkbox = gui.find_element(root, gui.name(self.entity, name))
 	checkbox.enabled = self.settings.mode == mode
+end
+
+function _M:disable_textbox(root, name, mode)
+	local caption = gui.find_element(root, gui.name(self.entity, name, "caption"))
+	local textbox = gui.find_element(root, gui.name(self.entity, name, "value"))
+
+	if caption and caption.valid then
+		caption.enabled = self.settings.mode == mode
+	end
+
+	if textbox and textbox.valid then
+		textbox.enabled = self.settings.mode == mode
+	end
 end
 
 function _M:on_selection_changed(name, selected)
@@ -329,6 +366,18 @@ function _M:read_machine_status(params)
 end
 
 function _M:set_recipe()
+	-- Check sticky state and return early if still sticky
+	if self.sticky then
+		-- craft-n-before-switch
+		if game.tick >= self.craft_n_before_switch.unstick_at_tick then
+			self.sticky = false
+			self.allow_sticky = false
+		else
+			return true
+		end
+	end
+
+	-- Update/get cc recipe
 	local changed, recipe
 	if self.settings.craft_until_zero then
 		if not self.last_recipe or not signals.signal_present(self.entity, nil, self.entityUID) then
@@ -354,19 +403,34 @@ function _M:set_recipe()
 	if (not recipe) and (not self.last_assembler_recipe) then return true end
 	
 	-- Get current assembler recipe
-	local current_assembler_recipe = self.assembler.get_recipe()
+	local assembler = self.assembler
+	local current_assembler_recipe = assembler.get_recipe()
 
 	-- If selected recipe is same as current_assembler_recipe then return
 	if (recipe == current_assembler_recipe) then return true end
 	
-	-- Tag to indicate a new recipe has to be set, when false it indicates recipe has to be cleared
-	local isSetNewRecipe = false
+	-- Tag to indicate a new recipe has to be set, false indicates recipe has to be cleared
+	local assembler_has_recipe = false
 
-	-- set_recipe proper:
-	-- Switch 1: Assembler has a current recipe, and requires a change of recipe
-	if current_assembler_recipe and ((not recipe) or recipe ~= current_assembler_recipe) then
+	-- set_recipe() decision proper:
+	-- Switch 1: Assembler has a current recipe, and requires a change of recipe or clearing of recipe
+	if current_assembler_recipe and ((not recipe) or (recipe ~= current_assembler_recipe)) then
 
-		if recipe then isSetNewRecipe = true end
+		-- Check craft-n-before-switch
+		if self.allow_sticky and self.settings.craft_n_before_switch > 0 then
+			-- calculate unstick_at_tick
+			local ticks_per_craft = current_assembler_recipe.energy * 60 / assembler.crafting_speed
+			local progress_remaining = 1 - assembler.crafting_progress
+			local full_craft_count = self.settings.craft_n_before_switch - 1
+
+			local delay = math.ceil((progress_remaining + full_craft_count) * ticks_per_craft)
+			
+			self.craft_n_before_switch.unstick_at_tick = game.tick + delay
+			self.sticky = true
+			return true
+		end
+
+		if recipe then assembler_has_recipe = true end
 
 		-- Move items if necessary
 		local success, error = self:move_items()
@@ -392,10 +456,10 @@ function _M:set_recipe()
 
 	-- Switch 2: Assembler does not have a recipe, and requires setting a new recipe
 	elseif (not current_assembler_recipe) and recipe then
-		isSetNewRecipe = true
+		assembler_has_recipe = true
 	end
 
-	-- Finally attempt to switch the recipe
+	-- Finally attempt to switch/clear the recipe
 	self.assembler.set_recipe(recipe)
 
 	-- Check if assembler successfully switched recipe
@@ -409,11 +473,13 @@ function _M:set_recipe()
 		self.last_assembler_recipe = new_assembler_recipe
 	end
 	
-	if isSetNewRecipe then
+	if assembler_has_recipe then
 		-- Move modules and items back into the machine
 		self:insert_modules()
 		self:insert_items()
 	end
+
+	self.allow_sticky = true
 	
 	return true
 end

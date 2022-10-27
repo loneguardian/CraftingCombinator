@@ -43,7 +43,9 @@ function _M.find_element(root, name)
 			local subresult = _M.find_element(child, name)
 			if subresult ~= nil then return subresult; end
 		elseif child.name == name then return child
-		elseif name:sub(1, #child.name) == child.name then return _M.find_element(child, name); end
+		elseif name:sub(1, #child.name) == child.name then
+			return _M.find_element(child, name);
+		end
 	end
 	return nil
 end
@@ -247,6 +249,7 @@ function _M.number_picker(name, value)
 			type = 'label',
 			name = elem_name(container, 'caption'),
 			caption = locale(name),
+			tooltip = locale(name .. ":tooltip")
 		}
 		local text_field = container.add {
 			type = 'textfield',

@@ -183,6 +183,8 @@ script.on_event(defines.events.on_gui_text_changed, function(event)
 		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
 		if gui_name == 'recipe-combinator' then
 			global.rc.data[unit_number]:on_text_changed(element_name, element.text)
+		elseif gui_name == 'crafting-combinator' then
+			global.cc.data[unit_number]:on_text_changed(element_name, element.text)
 		end
 	end
 end)
