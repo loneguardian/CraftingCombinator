@@ -151,7 +151,7 @@ function _M.destroy(entity, player_index)
 	
 	global.cc.data[unit_number] = nil
 	for k, v in pairs(global.cc.ordered) do
-		if v.entity.unit_number == unit_number then
+		if v.entityUID == unit_number then
 			table.remove(global.cc.ordered, k)
 			break
 		end
