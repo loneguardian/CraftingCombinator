@@ -3,6 +3,56 @@
 
 local config = require 'config'
 
+local get_delayed_blueprint_tag_state = function(player_index)
+  if not global.delayed_blueprint_tag_state[player_index] then
+    global.delayed_blueprint_tag_state[player_index] = {
+      is_queued = false,
+      data = {}
+    }
+  end
+  
+  return global.delayed_blueprint_tag_state[player_index]
+end
+
+local delayed_blueprint_tag = {
+  reset = function(player_index)
+    local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+    delayed_blueprint_tag_state.data = {}
+    delayed_blueprint_tag_state.is_queued = false
+  end,
+
+  store = function(player_index, entity, key, tag_data)
+    local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+    local position = entity.position.x .. "|" .. entity.position.y
+    if not delayed_blueprint_tag_state.is_queued then delayed_blueprint_tag_state.is_queued = true end
+    delayed_blueprint_tag_state.data[position] = {
+      key = key,
+      tag_data = tag_data
+    }
+  end,
+
+  tag = function(player_index, blueprint)
+    local bp_entities = blueprint.get_blueprint_entities()
+
+    if bp_entities then
+      local index_by_position = {}
+      -- store blueprint index -> index
+      for _, entity in pairs(bp_entities) do
+        index_by_position[entity.position.x .. "|" .. entity.position.y] = entity.entity_number
+      end
+
+      local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+      -- attempt to tag all entities in saved table
+      for position, t in pairs(delayed_blueprint_tag_state.data) do
+        local index = index_by_position[position]
+        if index then
+          blueprint.set_blueprint_entity_tag(index, t.key, t.tag_data)
+        end
+      end
+    end
+  end
+}
+
 local get_tag_data = function(unit_number, entity_name)
   local t
 
@@ -23,53 +73,9 @@ local get_tag_data = function(unit_number, entity_name)
   return tag_data
 end
 
-local get_delayed_blueprint_tag_state = function()
-  if not global.delayed_blueprint_tag_state then
-    global.delayed_blueprint_tag_state = {
-      is_queued = false,
-      data = {}
-    }
-  end
-  return global.delayed_blueprint_tag_state
-end
-
-local delayed_blueprint_tag = get_delayed_blueprint_tag_state()
-
-delayed_blueprint_tag.reset = function(self)
-  self.data = {}
-  self.is_queued = false
-end
-
-delayed_blueprint_tag.store = function(self, entity, key, tag_data)
-  local position = entity.position.x .. "|" .. entity.position.y
-  self.data[position] = {
-    key = key,
-    tag_data = tag_data
-  }
-end
-
-delayed_blueprint_tag.tag_blueprint = function(self, blueprint)
-  local bp_entities = blueprint.get_blueprint_entities()
-
-  if bp_entities then
-    local index_by_position = {}
-    -- store blueprint index -> index
-    for _, entity in pairs(bp_entities) do
-      index_by_position[entity.position.x .. "|" .. entity.position.y] = entity.entity_number
-    end
-
-    -- attempt to tag all entities in saved table
-    for position, t in pairs(self.data) do
-      local index = index_by_position[position]
-      if index then
-        blueprint.set_blueprint_entity_tag(index, t.key, t.tag_data)
-      end
-    end
-  end
-end
-
 local on_player_setup_blueprint = function(event)
-  local player = game.get_player(event.player_index)
+  local player_index = event.player_index
+  local player = game.get_player(player_index)
   if not (player and player.valid) then return end
 
   local blueprint = player.cursor_stack
@@ -92,8 +98,7 @@ local on_player_setup_blueprint = function(event)
             blueprint.set_blueprint_entity_tag(index, "crafting_combinator_data", tag_data)
           elseif count == 0 then
             -- no blueprint item, delayed tagging
-            if not delayed_blueprint_tag.is_queued then delayed_blueprint_tag.is_queued = true end
-            delayed_blueprint_tag:store(entity, "crafting_combinator_data", tag_data)
+            delayed_blueprint_tag.store(player_index, entity, "crafting_combinator_data", tag_data)
           end
         end
       end
@@ -102,16 +107,19 @@ local on_player_setup_blueprint = function(event)
 end
 
 local on_blueprint_gui_closed = function(event)
-  if delayed_blueprint_tag.is_queued then
+  local player_index = event.player_index
+  local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+
+  if delayed_blueprint_tag_state and delayed_blueprint_tag_state.is_queued then
     local gui_type = event.gui_type
     if gui_type == defines.gui_type.item and event.item.type == "blueprint" then
       local blueprint = event.item
-      delayed_blueprint_tag:tag_blueprint(blueprint)
-      game.print("CC: Delayed blueprint data transfer - settings might be corrupted")
+      delayed_blueprint_tag.tag(player_index, blueprint)
+      game.print("CC: Delayed blueprint data transfer, settings might have transferred incorrectly")
     elseif gui_type == defines.gui_type.blueprint_library then
       game.print("CC: Unable to transfer data to library blueprints")
     end
-    delayed_blueprint_tag:reset()
+    delayed_blueprint_tag.reset(player_index)
   end
 end
 

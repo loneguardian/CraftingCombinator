@@ -11,6 +11,11 @@ local blueprint = require 'script.blueprint'
 
 local cc_rate, rc_rate = 1, 1
 
+local function init_global()
+	global.delayed_blueprint_tag_state = {}
+	global.dead_combinator_settings = {}
+end
+
 local function enable_recipes()
 	for _, force in pairs(game.forces) do
 		if force.technologies['circuit-network'].researched then
@@ -44,6 +49,7 @@ script.on_init(function()
 	cc_control.init_global()
 	rc_control.init_global()
 	signals.init_global()
+	init_global()
 	on_load(true)
 end)
 script.on_load(on_load)
@@ -78,7 +84,6 @@ end
 
 local function save_dead_combinator_settings(uid, settings)
 	-- entry is created during on_entity_died and removed during on_post_entity_died
-	if not global.dead_combinator_settings then global.dead_combinator_settings = {} end
 	global.dead_combinator_settings[uid] = util.deepcopy(settings)
 end
 
