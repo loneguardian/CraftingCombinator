@@ -91,7 +91,7 @@ function _M.destroy(entity)
 	local combinator = global.rc.data[unit_number]
 	
 	combinator.output_proxy.destroy()
-	signals.cache.drop(entity)
+	signals.cache.drop(unit_number)
 	
 	global.rc.data[unit_number] = nil
 	for k, v in pairs(global.rc.ordered) do

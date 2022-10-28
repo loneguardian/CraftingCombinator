@@ -106,13 +106,14 @@ function _M.destroy_by_robot(entity)
 	combinator_entity.destroy()
 end
 
-function _M.destroy(entity, entity_died)
+function _M.destroy(entity)
 	local unit_number = entity.unit_number
 	local combinator = global.cc.data[unit_number]
 
-	if entity_died then
-		combinator.module_chest.destroy();
-	end
+	-- Todo: destroy gui before cc/rc data is destroyed
+
+	combinator.module_chest.destroy();
+	signals.cache.drop(unit_number)
 	
 	global.cc.data[unit_number] = nil
 	for k, v in pairs(global.cc.ordered) do
