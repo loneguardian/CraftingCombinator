@@ -265,5 +265,18 @@ function _M.number_picker(name, value)
 	return specs
 end
 
+function _M.destroy_entity_gui(unit_number)
+	for _, player in pairs(game.players) do
+		local screen_gui = player.gui.screen.children
+
+		if not screen_gui then return end
+
+		for _, element in pairs(screen_gui) do
+			if element.name:match(MOD_NAME) and element.name:match(unit_number) then
+				element.destroy()
+			end
+		end
+	end
+end
 
 return _M

@@ -100,7 +100,9 @@ end
 function _M.destroy(entity)
 	local unit_number = entity.unit_number
 
-	-- Todo: destroy gui before cc/rc data is destroyed
+	-- closes gui for entity if it is opened
+	gui.destroy_entity_gui(unit_number)
+
 	signals.cache.drop(unit_number)
 
 	global.cc.data[unit_number] = nil
@@ -127,6 +129,7 @@ function _M.mine_module_chest(unit_number, player_index)
 
 			-- Replace the entity if a player was trying to pick it up
 			local new_uid = combinator.entity.unit_number
+			gui.destroy_entity_gui(unit_number)
 			global.cc.data[unit_number] = nil
 			global.cc.data[new_uid] = combinator
 			combinator.entityUID = new_uid
