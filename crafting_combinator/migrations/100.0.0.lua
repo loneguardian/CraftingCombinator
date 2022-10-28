@@ -4,6 +4,11 @@ late_migrations['100.0.0'] = function(changes)
     local change = changes.mod_changes['crafting_combinator']
 	if not change or not change.old_version then return end
 
+    -- initialise global
+    global.delayed_blueprint_tag_state = {}
+	global.dead_combinator_settings = {}
+
+    -- update cc data
     for _, combinator in pairs(global.cc.data) do
         combinator.last_combinator_mode = nil
 
@@ -19,7 +24,8 @@ late_migrations['100.0.0'] = function(changes)
 
         combinator.settings.craft_n_before_switch = 0
     end
-
+    
+    -- update rc data
     for _, combinator in pairs(global.rc.data) do
         combinator.entityUID = combinator.entity.unit_number
     end

@@ -3,18 +3,23 @@ Version: 100.0.0
 Date: ????
   Info:
     - Xeraph's edit (based on Crafting Combinator 0.16.3)
+    - Migration to this version will acknowledge the removal of 'crafting_combinator:settings-entity (programmable-speaker)' and its related objects, this is expected
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
   Features:
-    - New sticky behaviour - Craft-n-before-switch:
-      - This new feature addresses the changing or flip-flopping of recipes due to the loss of signal caused by crafting machine buffering materials (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
-      - This is how it currently works: if a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any recipe change
-      - By default a new cc has a Craft-1-before-switch setting
+    - Blueprints and ghosts now carry cc and rc data
+    - New sticky behaviour: Craft-n-before-switch
+      - This behaviour addresses the changing or flip-flopping of recipes due to the loss of signal caused by crafting machine's buffer (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
+      - This is how it currently works: if a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any signal change
+      - By default a new/migrated cc is set to Craft-1-before-switch
   Locale:
     - Fixed duplicate key for cs.cfg
-    - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip'
+    - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip', [blueprint]
   Changes:
     - Optimized idle performance (https://github.com/theRustyKnife/CraftingCombinator/pull/71)
+    - Event registration now uses filters
+    - Improved event handling for module chest, uses mine-entity instead of manual inventory management
+    - Depreciated the usage of programmable speaker to store bp settings (settings-parser module)
 ---------------------------------------------------------------------------------------------------
 Version: 0.16.3
 Date: 11. 12. 2021

@@ -7,7 +7,7 @@ local signals = require 'script.signals'
 local util = require 'script.util'
 local gui = require 'script.gui'
 local blueprint = require 'script.blueprint'
-
+local housekeeping = require 'script.housekeeping'
 
 local cc_rate, rc_rate = 1, 1
 
@@ -55,6 +55,10 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
+	housekeeping.cleanup_delayed_bp_state()
+	housekeeping.cleanup_invalid_entity()
+	--housekeeping.rebuild_ordered_table()
+
 	late_migrations(changes)
 	on_load(true)
 	enable_recipes()
@@ -87,21 +91,22 @@ local function save_dead_combinator_settings(uid, settings)
 	global.dead_combinator_settings[uid] = util.deepcopy(settings)
 end
 
-local function on_destroyed(event)
+local function on_destroyed(event) -- events without player_index
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
 
+	local entity_died = event.name == defines.events.on_entity_died
 	local entity_name = entity.name
 	if entity_name == config.CC_NAME then
-		if event.name == defines.events.on_entity_died then
+		if entity_died then
 			local uid = entity.unit_number
 			save_dead_combinator_settings(uid, global.cc.data[uid].settings)
 		end
-		if cc_control.destroy(entity, event.player_index) then return; end -- Return if the entity was coppied
+		cc_control.destroy(entity, entity_died)
 	elseif entity_name == config.MODULE_CHEST_NAME then
 		return cc_control.destroy_by_robot(entity)
 	elseif entity_name == config.RC_NAME then
-		if event.name == defines.events.on_entity_died then
+		if entity_died then
 			local uid = entity.unit_number
 			save_dead_combinator_settings(uid, global.rc.data[uid].settings)
 		end
@@ -116,6 +121,38 @@ local function on_destroyed(event)
 	end
 
 	-- Todo: destroy gui before entity is destroyed
+end
+
+local function on_player_mined(event)
+	local entity = event.entity
+	if not (entity and entity.valid) then return end
+
+	local entity_name = entity.name
+	if entity_name == config.CC_NAME then
+		-- Pre-destroy - need to mine module chest first
+		if cc_control.mine_module_chest(entity.unit_number, event.player_index) then
+			signals.cache.drop(entity)
+			cc_control.destroy(entity)
+		else
+			-- Unable to mine module chest, remove cc from buffer
+			event.buffer.remove({name=config.CC_NAME, count=1})
+		end
+	elseif entity_name == config.MODULE_CHEST_NAME then
+		-- Successfully mined a module-chest, remove one cc from buffer because cc is the mine product
+		event.buffer.remove({name=config.CC_NAME, count=1})
+
+		-- Notify other combinators that the chest was destroyed
+		cc_control.update_chests(entity.surface, entity, true)
+	elseif entity_name == config.RC_NAME then
+		rc_control.destroy(entity)
+	else
+		local entity_type = entity.type
+		if entity_type == 'assembling-machine' then
+			cc_control.update_assemblers(entity.surface, entity, true)
+		else -- util.CONTAINER_TYPES[entity.type]
+			cc_control.update_chests(entity.surface, entity, true)
+		end
+	end
 end
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
@@ -137,6 +174,8 @@ script.on_event(defines.events.on_tick, function(event)
 	run_update(global.cc.ordered, event.tick, cc_rate)
 	run_update(global.rc.ordered, event.tick, rc_rate)
 end)
+
+-- Todo: need to figure out a way to do housekeeping for cc/rc.ordered
 
 script.on_event(defines.events.on_player_rotated_entity, function(event)
 	if event.entity.name == config.CC_NAME then
@@ -184,10 +223,10 @@ script.on_event(defines.events.script_raised_built, on_built, filter_built_destr
 script.on_event(defines.events.script_raised_revive, on_built, filter_built_destroyed)
 
 -- entity destroyed events
-script.on_event(defines.events.on_pre_player_mined_item, on_destroyed, filter_built_destroyed)
 script.on_event(defines.events.on_robot_pre_mined, on_destroyed, filter_built_destroyed)
 script.on_event(defines.events.script_raised_destroy, on_destroyed, filter_built_destroyed)
 script.on_event(defines.events.on_entity_died, on_destroyed, filter_built_destroyed)
+script.on_event(defines.events.on_player_mined_entity, on_player_mined, filter_built_destroyed)
 
 -- additional blueprint events
 script.on_event(defines.events.on_player_setup_blueprint, blueprint.handle_event)

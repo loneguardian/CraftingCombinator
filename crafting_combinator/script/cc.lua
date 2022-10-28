@@ -106,54 +106,47 @@ function _M.destroy_by_robot(entity)
 	combinator_entity.destroy()
 end
 
-function _M.destroy(entity, player_index)
+function _M.destroy(entity, entity_died)
 	local unit_number = entity.unit_number
 	local combinator = global.cc.data[unit_number]
-	
-	if player_index then
-		local inventory = combinator.inventories.module_chest
-		if not inventory.is_empty() then
-			local target = player_index and game.get_player(player_index).get_inventory(defines.inventory.character_main)
-			for i = 1, #inventory do
-				local stack = inventory[i]
-				if stack.valid_for_read then
-					local r = target and target.insert(stack) or 0
-					if r < stack.count then
-						stack.count = stack.count - r
-						-- Clone the entity as replacement and tell the player the inventory is full
-						game.get_player(player_index).print{'inventory-restriction.player-inventory-full', stack.prototype.localised_name}
-						
-						-- Replace the entity if a player was trying to pick it up
-						local old_entity = combinator.entity
-						local old_cb = combinator.control_behavior
-						combinator.entity = old_entity.clone{position = old_entity.position}
-						combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
-						
-						global.cc.data[unit_number] = nil
-						global.cc.data[combinator.entity.unit_number] = combinator
-						
-						for _, connection in pairs(old_entity.circuit_connection_definitions) do
-							combinator.entity.connect_neighbour(connection)
-						end
-						
-						old_entity.destroy()
-						return true -- Inidcate that the original entity was destroyed
-					else stack.clear(); end
-				end
-			end
-		end
+
+	if entity_died then
+		combinator.module_chest.destroy();
 	end
-	
-	-- Notify other combinators that the chest was destroyed
-	_M.update_chests(entity.surface, combinator.module_chest, true)
-	if player_index then combinator.module_chest.destroy(); end
-	signals.cache.drop(entity)
 	
 	global.cc.data[unit_number] = nil
 	for k, v in pairs(global.cc.ordered) do
 		if v.entityUID == unit_number then
 			table.remove(global.cc.ordered, k)
 			break
+		end
+	end
+end
+
+function _M.mine_module_chest(unit_number, player_index)
+	if player_index then
+		local player = game.get_player(player_index)
+		local combinator = global.cc.data[unit_number]
+		local success = player.mine_entity(combinator.module_chest)
+		if success then
+			return success
+		else
+			-- Clone the combinator entity as replacement
+			local old_entity = combinator.entity
+			combinator.entity = old_entity.clone{position = old_entity.position, create_build_effect_smoke = false}
+			combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
+
+			-- Replace the entity if a player was trying to pick it up
+			local new_uid = combinator.entity.unit_number
+			global.cc.data[unit_number] = nil
+			global.cc.data[new_uid] = combinator
+			combinator.entityUID = new_uid
+
+			for _, connection in pairs(old_entity.circuit_connection_definitions) do
+				combinator.entity.connect_neighbour(connection)
+			end
+
+			old_entity.destroy()
 		end
 	end
 end
