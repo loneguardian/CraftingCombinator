@@ -7,7 +7,7 @@ local signals = require 'script.signals'
 local util = require 'script.util'
 local gui = require 'script.gui'
 local blueprint = require 'script.blueprint'
-local housekeeping = require 'script.housekeeping'
+--local housekeeping = require 'script.housekeeping'
 
 local cc_rate, rc_rate = 1, 1
 
@@ -55,8 +55,8 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
-	housekeeping.cleanup_delayed_bp_state()
-	housekeeping.cleanup_invalid_entity()
+	--housekeeping.check_orphaned_combinator()
+	--housekeeping.check_uid()
 	--housekeeping.rebuild_ordered_table()
 
 	late_migrations(changes)
@@ -70,9 +70,11 @@ local function on_built(event)
 
 	local entity_name = entity.name
 	if entity_name == config.CC_NAME then
-		cc_control.create(entity);
+		local tags = event.tags
+		cc_control.create(entity, tags);
 	elseif entity_name == config.RC_NAME then
-		rc_control.create(entity);
+		local tags = event.tags
+		rc_control.create(entity, tags);
 	else
 		local entity_type = entity.type
 		if entity_type == 'assembling-machine' then
@@ -95,15 +97,20 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
 
+	-- cached properties
 	local entity_name = entity.name
 	local entity_type = entity.type
+	local entity_surface = entity.surface
 	local event_name = event.name
+
 	if entity_name == config.CC_NAME then
+		local uid = entity.unit_number
+		local combinator = global.cc.data[uid]
 		if event_name == defines.events.on_entity_died then
-			local uid = entity.unit_number
-			local combinator = global.cc.data[uid]
 			save_dead_combinator_settings(uid, combinator.settings)
-			combinator.module_chest.destroy({raise_destroy = true})
+			-- Notify other combinators that the module-chest was destroyed
+			cc_control.update_chests(entity_surface, combinator.module_chest, true)
+			combinator.module_chest.destroy()
 		elseif event_name == defines.events.on_player_mined_entity then
 			-- Need to mine module chest first, success == true
 			if not cc_control.mine_module_chest(entity.unit_number, event.player_index) then
@@ -118,27 +125,29 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
 			-- Remove one cc from buffer because cc is the mine product
 			event.buffer.remove({name=config.CC_NAME, count=1})
-		elseif event_name == defines.events.on_robot_mined_entity then
+		elseif event_name == defines.events.on_robot_mined_entity
+		or event_name == defines.events.script_raised_destroy then
+			-- Script_raised_destroy or
 			-- This signifies that the module-chest is empty and mined by a robot
 			-- Get cc_entity and raise script destroy cc
-			local cc_entity = entity.surface.find_entity(config.CC_NAME, entity.position)
-			if cc_entity then cc_entity.destroy({raise_destroy = true}) end
+			local cc_entity = entity_surface.find_entity(config.CC_NAME, entity.position)
+			if cc_entity and cc_entity.valid then cc_entity.destroy({raise_destroy = true}) end
 		end
+		-- Notify other combinators that the module-chest was destroyed
+		cc_control.update_chests(entity_surface, entity, true)
 	elseif entity_name == config.RC_NAME then
 		if event_name == defines.events.on_entity_died then
 			local uid = entity.unit_number
-			save_dead_combinator_settings(uid, global.cc.data[uid].settings)
+			save_dead_combinator_settings(uid, global.rc.data[uid].settings)
 		end
 		rc_control.destroy(entity)
 	else
 		if entity_type == 'assembling-machine' then
-			cc_control.update_assemblers(entity.surface, entity, true)
+			cc_control.update_assemblers(entity_surface, entity, true)
+		elseif util.CONTAINER_TYPES[entity_type] then
+			-- Notify other combinators that a container was destroyed
+			cc_control.update_chests(entity_surface, entity, true)
 		end
-	end
-
-	-- Notify other combinators that a container was destroyed
-	if util.CONTAINER_TYPES[entity_type] then
-		cc_control.update_chests(entity.surface, entity, true)
 	end
 end
 

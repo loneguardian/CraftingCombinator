@@ -6,6 +6,7 @@ Date: ????
     - Migration to this version will acknowledge the removal of 'crafting_combinator:settings-entity (programmable-speaker)' and its related objects, this is expected
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
+    - Fixed GUI behaviour when its associated cc/rc is destroyed
   Features:
     - Blueprints and ghosts now carry cc and rc data
     - New sticky behaviour: Craft-n-before-switch
