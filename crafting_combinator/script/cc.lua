@@ -81,40 +81,28 @@ function _M.create(entity)
 	_M.update_chests(entity.surface, combinator.module_chest)
 end
 
-function _M.mark_for_deconstruction(entity)
+-- Deconstruction handlers
+-- if a module-chest is marked, get cc, disable and update
+-- if a module-chest's mark is cancelled, get cc, enable and update
+-- if a cc is marked for deconstruction? (this should not happen because of 'not-deconstructable' flag
+
+function _M.on_module_chest_marked_for_decon(entity)
 	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
 	combinator.enabled = false
 	combinator:update()
 end
-function _M.cancel_deconstruction(entity)
+function _M.on_module_chest_cancel_decon(entity)
 	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
 	combinator.enabled = true
 	combinator:update()
 end
-function _M.fix_undo_deconstruction(entity, player_index)
-	local combinator = global.cc.data[entity.unit_number]
-	local player = player_index and game.get_player(player_index)
-	local force = player and player.force or entity.force
-	entity.cancel_deconstruction(force, player)
-	combinator.module_chest.order_deconstruction(force, player)
-end
-
-function _M.destroy_by_robot(entity)
-	local combinator_entity = entity.surface.find_entity(config.CC_NAME, entity.position)
-	if not combinator_entity then return; end
-	_M.destroy(combinator_entity)
-	combinator_entity.destroy()
-end
 
 function _M.destroy(entity)
 	local unit_number = entity.unit_number
-	local combinator = global.cc.data[unit_number]
 
 	-- Todo: destroy gui before cc/rc data is destroyed
-
-	combinator.module_chest.destroy();
 	signals.cache.drop(unit_number)
-	
+
 	global.cc.data[unit_number] = nil
 	for k, v in pairs(global.cc.ordered) do
 		if v.entityUID == unit_number then

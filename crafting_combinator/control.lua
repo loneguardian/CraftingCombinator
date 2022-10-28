@@ -91,67 +91,54 @@ local function save_dead_combinator_settings(uid, settings)
 	global.dead_combinator_settings[uid] = util.deepcopy(settings)
 end
 
-local function on_destroyed(event) -- events without player_index
+local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
 
-	local entity_died = event.name == defines.events.on_entity_died
 	local entity_name = entity.name
+	local entity_type = entity.type
+	local event_name = event.name
 	if entity_name == config.CC_NAME then
-		if entity_died then
+		if event_name == defines.events.on_entity_died then
+			local uid = entity.unit_number
+			local combinator = global.cc.data[uid]
+			save_dead_combinator_settings(uid, combinator.settings)
+			combinator.module_chest.destroy({raise_destroy = true})
+		elseif event_name == defines.events.on_player_mined_entity then
+			-- Need to mine module chest first, success == true
+			if not cc_control.mine_module_chest(entity.unit_number, event.player_index) then
+				-- Unable to mine module chest, cc cloned and replaced - remove cc from buffer, then return
+				event.buffer.remove({name=config.CC_NAME, count=1})
+				return
+			end
+		end
+		cc_control.destroy(entity)
+	elseif entity_name == config.MODULE_CHEST_NAME then
+		if event_name == defines.events.on_player_mined_entity then
+			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
+			-- Remove one cc from buffer because cc is the mine product
+			event.buffer.remove({name=config.CC_NAME, count=1})
+		elseif event_name == defines.events.on_robot_mined_entity then
+			-- This signifies that the module-chest is empty and mined by a robot
+			-- Get cc_entity and raise script destroy cc
+			local cc_entity = entity.surface.find_entity(config.CC_NAME, entity.position)
+			if cc_entity then cc_entity.destroy({raise_destroy = true}) end
+		end
+	elseif entity_name == config.RC_NAME then
+		if event_name == defines.events.on_entity_died then
 			local uid = entity.unit_number
 			save_dead_combinator_settings(uid, global.cc.data[uid].settings)
 		end
-		cc_control.destroy(entity, entity_died)
-	elseif entity_name == config.MODULE_CHEST_NAME then
-		return cc_control.destroy_by_robot(entity)
-	elseif entity_name == config.RC_NAME then
-		if entity_died then
-			local uid = entity.unit_number
-			save_dead_combinator_settings(uid, global.rc.data[uid].settings)
-		end
 		rc_control.destroy(entity)
 	else
-		local entity_type = entity.type
 		if entity_type == 'assembling-machine' then
 			cc_control.update_assemblers(entity.surface, entity, true)
-		else -- util.CONTAINER_TYPES[entity.type]
-			cc_control.update_chests(entity.surface, entity, true)
 		end
 	end
 
-	-- Todo: destroy gui before entity is destroyed
-end
-
-local function on_player_mined(event)
-	local entity = event.entity
-	if not (entity and entity.valid) then return end
-
-	local entity_name = entity.name
-	if entity_name == config.CC_NAME then
-		-- Pre-destroy - need to mine module chest first
-		if cc_control.mine_module_chest(entity.unit_number, event.player_index) then
-			signals.cache.drop(entity)
-			cc_control.destroy(entity)
-		else
-			-- Unable to mine module chest, remove cc from buffer
-			event.buffer.remove({name=config.CC_NAME, count=1})
-		end
-	elseif entity_name == config.MODULE_CHEST_NAME then
-		-- Successfully mined a module-chest, remove one cc from buffer because cc is the mine product
-		event.buffer.remove({name=config.CC_NAME, count=1})
-
-		-- Notify other combinators that the chest was destroyed
+	-- Notify other combinators that a container was destroyed
+	if util.CONTAINER_TYPES[entity_type] then
 		cc_control.update_chests(entity.surface, entity, true)
-	elseif entity_name == config.RC_NAME then
-		rc_control.destroy(entity)
-	else
-		local entity_type = entity.type
-		if entity_type == 'assembling-machine' then
-			cc_control.update_assemblers(entity.surface, entity, true)
-		else -- util.CONTAINER_TYPES[entity.type]
-			cc_control.update_chests(entity.surface, entity, true)
-		end
 	end
 end
 
@@ -174,8 +161,6 @@ script.on_event(defines.events.on_tick, function(event)
 	run_update(global.cc.ordered, event.tick, cc_rate)
 	run_update(global.rc.ordered, event.tick, rc_rate)
 end)
-
--- Todo: need to figure out a way to do housekeeping for cc/rc.ordered
 
 script.on_event(defines.events.on_player_rotated_entity, function(event)
 	if event.entity.name == config.CC_NAME then
@@ -223,27 +208,26 @@ script.on_event(defines.events.script_raised_built, on_built, filter_built_destr
 script.on_event(defines.events.script_raised_revive, on_built, filter_built_destroyed)
 
 -- entity destroyed events
-script.on_event(defines.events.on_robot_pre_mined, on_destroyed, filter_built_destroyed)
-script.on_event(defines.events.script_raised_destroy, on_destroyed, filter_built_destroyed)
 script.on_event(defines.events.on_entity_died, on_destroyed, filter_built_destroyed)
-script.on_event(defines.events.on_player_mined_entity, on_player_mined, filter_built_destroyed)
+script.on_event(defines.events.on_player_mined_entity, on_destroyed, filter_built_destroyed)
+script.on_event(defines.events.on_robot_mined_entity , on_destroyed, filter_built_destroyed)
+script.on_event(defines.events.script_raised_destroy, on_destroyed, filter_built_destroyed)
 
 -- additional blueprint events
 script.on_event(defines.events.on_player_setup_blueprint, blueprint.handle_event)
 script.on_event(defines.events.on_post_entity_died, blueprint.handle_event)
 
 -- decontruction events
-script.on_event(defines.events.on_marked_for_deconstruction, function(event)
-	if event.entity.name == config.CC_NAME then cc_control.fix_undo_deconstruction(event.entity, event.player_index); end
-	if event.entity.name == config.MODULE_CHEST_NAME then cc_control.mark_for_deconstruction(event.entity); end
-end)
-script.on_event(defines.events.on_cancelled_deconstruction, function(event)
-	if event.entity.name == config.MODULE_CHEST_NAME then cc_control.cancel_deconstruction(event.entity); end
-end)
-script.on_event(defines.events.on_pre_ghost_deconstructed, function(event)
-	event.entity = event.ghost
-	on_destroyed(event)
-end)
+script.on_event(
+	defines.events.on_marked_for_deconstruction,
+	function(event) cc_control.on_module_chest_marked_for_decon(event.entity) end,
+	{{filter = "name", name = config.MODULE_CHEST_NAME}}
+)
+script.on_event(
+	defines.events.on_cancelled_deconstruction,
+	function(event) cc_control.on_module_chest_cancel_decon(event.entity) end,
+	{{filter = "name", name = config.MODULE_CHEST_NAME}}
+)
 
 -- GUI events
 script.on_event(defines.events.on_gui_opened, function(event)

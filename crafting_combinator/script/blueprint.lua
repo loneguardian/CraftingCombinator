@@ -186,10 +186,10 @@ local on_post_entity_died = function(event)
 end
 
 local event_handlers = {
-    [defines.events.on_player_setup_blueprint] = on_player_setup_blueprint,
-    [defines.events.on_robot_built_entity] = ghost_revived_event,
     [defines.events.on_post_entity_died] = on_post_entity_died,
+    [defines.events.on_robot_built_entity] = ghost_revived_event,
     [defines.events.script_raised_revive] = ghost_revived_event,
+    [defines.events.on_player_setup_blueprint] = on_player_setup_blueprint,
     [defines.events.on_gui_closed] = on_blueprint_gui_closed
 }
 
