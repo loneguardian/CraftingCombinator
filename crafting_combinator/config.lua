@@ -2,7 +2,6 @@ return {
 	CC_NAME = 'crafting_combinator:crafting-combinator',
 	RC_NAME = 'crafting_combinator:recipe-combinator',
 	MODULE_CHEST_NAME = 'crafting_combinator:module-chest',
-	SETTINGS_ENTITY_NAME = 'crafting_combinator:settings-entity',
 	REFRESH_RATE_CC_NAME = 'crafting_combinator:refresh-rate-cc',
 	REFRESH_RATE_RC_NAME = 'crafting_combinator:refresh-rate-rc',
 	RC_PROXY_NAME = 'crafting_combinator:rc-proxy',

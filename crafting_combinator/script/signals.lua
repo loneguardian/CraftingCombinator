@@ -72,11 +72,11 @@ function _M.cache.reset(entity, name)
 	end
 end
 
-function _M.cache.drop(entity)
-	local cache = global.signals.cache[entity.unit_number]
+function _M.cache.drop(unit_number)
+	local cache = global.signals.cache[unit_number]
 	if cache then
 		for key, e in pairs(cache.__cache_entities) do e.destroy(); end
-		global.signals.cache[entity.unit_number] = nil
+		global.signals.cache[unit_number] = nil
 	end
 end
 

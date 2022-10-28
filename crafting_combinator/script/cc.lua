@@ -1,6 +1,5 @@
 local util = require 'script.util'
 local gui = require 'script.gui'
-local settings_parser = require 'script.settings-parser'
 local recipe_selector = require 'script.recipe-selector'
 local config = require 'config'
 local signals = require 'script.signals'
@@ -28,22 +27,6 @@ for name, signal in pairs(config.MACHINE_STATUS_SIGNALS) do
 	end
 end
 
-
-_M.settings_parser = settings_parser {
-	chest_position = {'c', 'int'},
-	mode = {'m', 'string'},
-	discard_items = {'d', 'bool'},
-	discard_fluids = {'f', 'bool'},
-	empty_inserters = {'i', 'bool'},
-	craft_until_zero = {'z', 'bool'},
-	craft_n_before_switch = {'s_cn', 'int'},
-	read_recipe = {'r', 'bool'},
-	read_speed = {'s', 'bool'},
-	read_machine_status = {'st', 'bool'},
-	wait_for_output_to_clear = {'wo', 'bool'},
-}
-
-
 -- General housekeeping
 
 function _M.init_global()
@@ -60,7 +43,8 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity)
+function _M.create(entity, tags)
+	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -71,7 +55,7 @@ function _M.create(entity)
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		settings = _M.settings_parser:read_or_default(entity, util.deepcopy(config.CC_DEFAULT_SETTINGS)),
+		settings = util.deepcopy(tag_settings or config.CC_DEFAULT_SETTINGS),
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -98,80 +82,64 @@ function _M.create(entity)
 	_M.update_chests(entity.surface, combinator.module_chest)
 end
 
-function _M.mark_for_deconstruction(entity)
+-- Deconstruction handlers
+-- if a module-chest is marked, get cc, disable and update
+-- if a module-chest's mark is cancelled, get cc, enable and update
+-- if a cc is marked for deconstruction? (this should not happen because of 'not-deconstructable' flag
+
+function _M.on_module_chest_marked_for_decon(entity)
 	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
 	combinator.enabled = false
 	combinator:update()
 end
-function _M.cancel_deconstruction(entity)
+function _M.on_module_chest_cancel_decon(entity)
 	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
 	combinator.enabled = true
 	combinator:update()
 end
-function _M.fix_undo_deconstruction(entity, player_index)
-	local combinator = global.cc.data[entity.unit_number]
-	local player = player_index and game.get_player(player_index)
-	local force = player and player.force or entity.force
-	entity.cancel_deconstruction(force, player)
-	combinator.module_chest.order_deconstruction(force, player)
-end
 
-function _M.destroy_by_robot(entity)
-	local combinator_entity = entity.surface.find_entity(config.CC_NAME, entity.position)
-	if not combinator_entity then return; end
-	_M.destroy(combinator_entity)
-	combinator_entity.destroy()
-end
-
-function _M.destroy(entity, player_index)
+function _M.destroy(entity)
 	local unit_number = entity.unit_number
-	local combinator = global.cc.data[unit_number]
-	
-	if player_index then
-		local inventory = combinator.inventories.module_chest
-		if not inventory.is_empty() then
-			local target = player_index and game.get_player(player_index).get_inventory(defines.inventory.character_main)
-			for i = 1, #inventory do
-				local stack = inventory[i]
-				if stack.valid_for_read then
-					local r = target and target.insert(stack) or 0
-					if r < stack.count then
-						stack.count = stack.count - r
-						-- Clone the entity as replacement and tell the player the inventory is full
-						game.get_player(player_index).print{'inventory-restriction.player-inventory-full', stack.prototype.localised_name}
-						
-						-- Replace the entity if a player was trying to pick it up
-						local old_entity = combinator.entity
-						local old_cb = combinator.control_behavior
-						combinator.entity = old_entity.clone{position = old_entity.position}
-						combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
-						
-						global.cc.data[unit_number] = nil
-						global.cc.data[combinator.entity.unit_number] = combinator
-						
-						for _, connection in pairs(old_entity.circuit_connection_definitions) do
-							combinator.entity.connect_neighbour(connection)
-						end
-						
-						old_entity.destroy()
-						return true -- Inidcate that the original entity was destroyed
-					else stack.clear(); end
-				end
-			end
-		end
-	end
-	
-	-- Notify other combinators that the chest was destroyed
-	_M.update_chests(entity.surface, combinator.module_chest, true)
-	if player_index then combinator.module_chest.destroy(); end
-	settings_parser.destroy(entity)
-	signals.cache.drop(entity)
-	
+
+	-- closes gui for entity if it is opened
+	gui.destroy_entity_gui(unit_number)
+
+	signals.cache.drop(unit_number)
+
 	global.cc.data[unit_number] = nil
 	for k, v in pairs(global.cc.ordered) do
-		if v.entity.unit_number == unit_number then
+		if v.entityUID == unit_number then
 			table.remove(global.cc.ordered, k)
 			break
+		end
+	end
+end
+
+function _M.mine_module_chest(unit_number, player_index)
+	if player_index then
+		local player = game.get_player(player_index)
+		local combinator = global.cc.data[unit_number]
+		local success = player.mine_entity(combinator.module_chest)
+		if success then
+			return success
+		else
+			-- Clone the combinator entity as replacement
+			local old_entity = combinator.entity
+			combinator.entity = old_entity.clone{position = old_entity.position, create_build_effect_smoke = false}
+			combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
+
+			-- Replace the entity if a player was trying to pick it up
+			local new_uid = combinator.entity.unit_number
+			gui.destroy_entity_gui(unit_number)
+			global.cc.data[unit_number] = nil
+			global.cc.data[new_uid] = combinator
+			combinator.entityUID = new_uid
+
+			for _, connection in pairs(old_entity.circuit_connection_definitions) do
+				combinator.entity.connect_neighbour(connection)
+			end
+
+			old_entity.destroy()
 		end
 	end
 end
@@ -273,15 +241,12 @@ function _M:on_checked_changed(name, state, element)
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
 	self:update_disabled_textboxes(gui.get_root(element))
-	
-	self.settings_parser:update(self.entity, self.settings)
 end
 
 function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
 		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
-		self.settings_parser:update(self.entity, self.settings)
 	end
 end
 
@@ -321,7 +286,6 @@ end
 function _M:on_selection_changed(name, selected)
 	if name == 'title:chest-position:value' then
 		self.settings.chest_position = selected
-		self.settings_parser:update(self.entity, self.settings)
 		self:find_chest()
 	end
 end
@@ -653,7 +617,6 @@ end
 
 
 function _M:update_inner_positions()
-	settings_parser.move_entity(self.entity, self.module_chest.position)
 	self.module_chest.teleport(self.entity.position)
 end
 

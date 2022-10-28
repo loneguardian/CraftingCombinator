@@ -1,23 +1,12 @@
 local config = require 'config'
 local util = require 'script.util'
 local gui = require 'script.gui'
-local settings_parser = require 'script.settings-parser'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
 
 local _M = {}
 local combinator_mt = {__index = _M}
-
-
-_M.settings_parser = settings_parser {
-	mode = {'m', 'string'},
-	multiply_by_input = {'i', 'bool'},
-	divide_by_output = {'o', 'bool'},
-	differ_output = {'d', 'bool'},
-	time_multiplier = {'t', 'number'},
-}
-
 
 -- General housekeeping
 
@@ -63,7 +52,8 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity)
+function _M.create(entity, tags)
+	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -74,7 +64,7 @@ function _M.create(entity)
 			create_build_effect_smoke = false,
 		},
 		input_control_behavior = entity.get_or_create_control_behavior(),
-		settings = _M.settings_parser:read_or_default(entity, util.deepcopy(config.RC_DEFAULT_SETTINGS)),
+		settings = util.deepcopy(tag_settings or config.RC_DEFAULT_SETTINGS),
 		last_signal = false,
 		last_name = false,
 		last_count = false
@@ -100,14 +90,16 @@ end
 function _M.destroy(entity)
 	local unit_number = entity.unit_number
 	local combinator = global.rc.data[unit_number]
+
+	-- closes gui for entity if it is opened
+	gui.destroy_entity_gui(unit_number)
 	
 	combinator.output_proxy.destroy()
-	settings_parser.destroy(entity)
-	signals.cache.drop(entity)
+	signals.cache.drop(unit_number)
 	
 	global.rc.data[unit_number] = nil
 	for k, v in pairs(global.rc.ordered) do
-		if v.entity.unit_number == unit_number then
+		if v.entityUID == unit_number then
 			table.remove(global.rc.ordered, k)
 			break
 		end
@@ -298,8 +290,6 @@ function _M:on_checked_changed(name, state, element)
 	if category == 'misc' then self.settings[name] = state; end
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
-	
-	self.settings_parser:update(self.entity, self.settings)
 	self:update(true)
 end
 
@@ -326,14 +316,12 @@ end
 function _M:on_text_changed(name, text)
 	if name == 'misc:time-multiplier:value' then
 		self.settings.time_multiplier = tonumber(text) or self.settings.time_multiplier
-		self.settings_parser:update(self.entity, self.settings)
 		self:update(true)
 	end
 end
 
 
 function _M:update_inner_positions()
-	settings_parser.move_entity(self.entity, self.output_proxy.position)
 	self.output_proxy.teleport(self.entity.position)
 end
 
