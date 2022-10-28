@@ -14,7 +14,7 @@ local get_delayed_blueprint_tag_state = function(player_index)
   return global.delayed_blueprint_tag_state[player_index]
 end
 
-local delayed_blueprint_tag = {
+local delayed_blueprint_tag_helper = {
   reset = function(player_index)
     local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
     delayed_blueprint_tag_state.data = {}
@@ -33,22 +33,27 @@ local delayed_blueprint_tag = {
 
   tag = function(player_index, blueprint)
     local bp_entities = blueprint.get_blueprint_entities()
-
+    
     if bp_entities then
       local index_by_position = {}
-      -- store blueprint index -> index
+      -- store blueprint entity position -> index
       for _, entity in pairs(bp_entities) do
         index_by_position[entity.position.x .. "|" .. entity.position.y] = entity.entity_number
       end
 
+      -- attempt to tag entities based on saved position -> tags
       local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
-      -- attempt to tag all entities in saved table
+      local transferred, failed = 0, 0
       for position, t in pairs(delayed_blueprint_tag_state.data) do
         local index = index_by_position[position]
         if index then
           blueprint.set_blueprint_entity_tag(index, t.key, t.tag_data)
+          transferred = transferred + 1
+        else
+          failed = failed + 1
         end
       end
+      return transferred, failed
     end
   end
 }
@@ -97,8 +102,8 @@ local on_player_setup_blueprint = function(event)
             -- immediate tagging
             blueprint.set_blueprint_entity_tag(index, "crafting_combinator_data", tag_data)
           elseif count == 0 then
-            -- no blueprint item, delayed tagging
-            delayed_blueprint_tag.store(player_index, entity, "crafting_combinator_data", tag_data)
+            -- no blueprint item, store data for delayed tagging
+            delayed_blueprint_tag_helper.store(player_index, entity, "crafting_combinator_data", tag_data)
           end
         end
       end
@@ -108,18 +113,23 @@ end
 
 local on_blueprint_gui_closed = function(event)
   local player_index = event.player_index
-  local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+  if not player_index then return end
 
-  if delayed_blueprint_tag_state and delayed_blueprint_tag_state.is_queued then
+  local delayed_blueprint_tag_state = get_delayed_blueprint_tag_state(player_index)
+  if not delayed_blueprint_tag_state then return end
+
+  if delayed_blueprint_tag_state.is_queued then
     local gui_type = event.gui_type
     if gui_type == defines.gui_type.item and event.item.type == "blueprint" then
       local blueprint = event.item
-      delayed_blueprint_tag.tag(player_index, blueprint)
-      game.print("CC: Delayed blueprint data transfer, settings might have transferred incorrectly")
+      local transferred, failed = delayed_blueprint_tag_helper.tag(player_index, blueprint)
+      local player = game.get_player(player_index)
+      player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-warning"}})
+      player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-summary", transferred, failed}})
     elseif gui_type == defines.gui_type.blueprint_library then
-      game.print("CC: Unable to transfer data to library blueprints")
+      game.get_player(player_index).print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-error:library"}})
     end
-    delayed_blueprint_tag.reset(player_index)
+    delayed_blueprint_tag_helper.reset(player_index)
   end
 end
 
