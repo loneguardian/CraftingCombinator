@@ -43,7 +43,8 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity)
+function _M.create(entity, tags)
+	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -54,7 +55,7 @@ function _M.create(entity)
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		settings = util.deepcopy(config.CC_DEFAULT_SETTINGS),
+		settings = util.deepcopy(tag_settings or config.CC_DEFAULT_SETTINGS),
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,

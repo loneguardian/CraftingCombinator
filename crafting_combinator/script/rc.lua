@@ -52,7 +52,8 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity)
+function _M.create(entity, tags)
+	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -63,7 +64,7 @@ function _M.create(entity)
 			create_build_effect_smoke = false,
 		},
 		input_control_behavior = entity.get_or_create_control_behavior(),
-		settings = util.deepcopy(config.RC_DEFAULT_SETTINGS),
+		settings = util.deepcopy(tag_settings or config.RC_DEFAULT_SETTINGS),
 		last_signal = false,
 		last_name = false,
 		last_count = false
@@ -89,6 +90,9 @@ end
 function _M.destroy(entity)
 	local unit_number = entity.unit_number
 	local combinator = global.rc.data[unit_number]
+
+	-- closes gui for entity if it is opened
+	gui.destroy_entity_gui(unit_number)
 	
 	combinator.output_proxy.destroy()
 	signals.cache.drop(unit_number)
