@@ -66,7 +66,13 @@ function _M.name(...)
 end
 
 
-function _M.get_root(element) return game.get_player(element.player_index).gui.screen; end
+function _M.get_root(element)
+	for _, gui in pairs(element.gui.screen.children) do
+		if gui.name:match(MOD_NAME) then
+			return gui
+		end
+	end
+end
 
 
 function _M.parse_entity_gui_name(name)
