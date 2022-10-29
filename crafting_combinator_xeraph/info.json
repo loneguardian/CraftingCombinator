@@ -1,9 +1,9 @@
 {
-	"name": "crafting_combinator",
-	"version": "100.0.0",
+	"name": "crafting_combinator_xeraph",
+	"version": "0.1.0",
 	"factorio_version": "1.1",
-	"title": "Crafting Combinator - Xeraph's Fork",
+	"title": "Crafting Combinator Xeraph's Fork",
 	"author": "LuziferSenpai, TheRustyKnife, Xeraph",
 	"description": "Includes combinators that allow you to set or read the recipe of any crafting machine, get ingredients or products of a recipe and more!",
-	"dependencies": ["base", "rusty-locale"]
+	"dependencies": ["base", "rusty-locale", "! crafting_combinator"]
 }
