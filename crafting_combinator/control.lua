@@ -127,14 +127,12 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 			event.buffer.remove({name=config.CC_NAME, count=1})
 		elseif event_name == defines.events.on_robot_mined_entity
 		or event_name == defines.events.script_raised_destroy then
-			-- Script_raised_destroy or
-			-- This signifies that the module-chest is empty and mined by a robot
-			-- Get cc_entity and raise script destroy cc
+			-- Script_raised_destroy or mined by robot
+			-- This signifies that the module chest will be destroyed
+			-- Get cc_entity and raise script destroy for cc
 			local cc_entity = entity_surface.find_entity(config.CC_NAME, entity.position)
 			if cc_entity and cc_entity.valid then cc_entity.destroy({raise_destroy = true}) end
 		end
-		-- Notify other combinators that the module-chest was destroyed
-		cc_control.update_chests(entity_surface, entity, true)
 	elseif entity_name == config.RC_NAME then
 		if event_name == defines.events.on_entity_died then
 			local uid = entity.unit_number
@@ -144,10 +142,12 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	else
 		if entity_type == 'assembling-machine' then
 			cc_control.update_assemblers(entity_surface, entity, true)
-		elseif util.CONTAINER_TYPES[entity_type] then
-			-- Notify other combinators that a container was destroyed
-			cc_control.update_chests(entity_surface, entity, true)
 		end
+	end
+
+	-- Notify other combinators that a container was destroyed (including module-chest)
+	if util.CONTAINER_TYPES[entity_type] then
+		cc_control.update_chests(entity_surface, entity, true)
 	end
 end
 

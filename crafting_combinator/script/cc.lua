@@ -254,11 +254,11 @@ function _M:update_disabled_checkboxes(root)
 	self:disable_checkbox(root, 'misc:discard-items', 'w')
 	self:disable_checkbox(root, 'misc:discard-fluids', 'w')
 	self:disable_checkbox(root, 'misc:empty-inserters', 'w')
-	self:disable_checkbox(root, 'sticky:craft-until-zero', 'w')
 	self:disable_checkbox(root, 'misc:wait-for-output-to-clear', 'w')
 	self:disable_checkbox(root, 'misc:read-recipe', 'r')
 	self:disable_checkbox(root, 'misc:read-speed', 'r')
 	self:disable_checkbox(root, 'misc:read-machine-status', 'r')
+	self:disable_checkbox(root, 'sticky:craft-until-zero', 'w')
 end
 
 function _M:update_disabled_textboxes(root)
