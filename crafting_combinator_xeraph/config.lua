@@ -1,4 +1,5 @@
 return {
+	MOD_PATH = '__crafting_combinator_xeraph__',
 	CC_NAME = 'crafting_combinator:crafting-combinator',
 	RC_NAME = 'crafting_combinator:recipe-combinator',
 	MODULE_CHEST_NAME = 'crafting_combinator:module-chest',

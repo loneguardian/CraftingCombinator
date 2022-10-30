@@ -1,5 +1,9 @@
--- Script adapted from Klonan's Kontraptions mod
+-- Script adapted from Klonan's Kontraptions mod:
 -- https://github.com/Klonan/Kontraptions/blob/master/script/sign-post.lua
+
+-- Delayed tag workaround inspiration from:
+-- Janzert https://forums.factorio.com/viewtopic.php?p=572657#p572657
+-- KonStg/extermeon's fCPU mod https://mods.factorio.com/mod/fcpu
 
 local config = require 'config'
 
