@@ -11,11 +11,6 @@ local blueprint = require 'script.blueprint'
 
 local cc_rate, rc_rate = 1, 1
 
-local function init_global()
-	global.delayed_blueprint_tag_state = {}
-	global.dead_combinator_settings = {}
-end
-
 local function enable_recipes()
 	for _, force in pairs(game.forces) do
 		if force.technologies['circuit-network'].researched then
@@ -43,6 +38,11 @@ local function on_load(forced)
 			if combinator then combinator:update_inner_positions(); end
 		end)
 	end
+end
+
+local function init_global()
+	global.delayed_blueprint_tag_state = global.delayed_blueprint_tag_state or {}
+	global.dead_combinator_settings = global.dead_combinator_settings or {}
 end
 
 script.on_init(function()
@@ -103,13 +103,20 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	local entity_surface = entity.surface
 	local event_name = event.name
 
+	-- Notify nearby combinators that a container was destroyed
+	if util.CONTAINER_TYPES[entity_type] then
+		cc_control.update_chests(entity_surface, entity, true)
+	end
+
+	-- Early return if script_raised_destroy is triggered by cc's on_entity_died
+	if event.cc_entity_died then return end
+
 	if entity_name == config.CC_NAME then
 		local uid = entity.unit_number
 		local combinator = global.cc.data[uid]
 		if event_name == defines.events.on_entity_died then
 			save_dead_combinator_settings(uid, combinator.settings)
-			-- Notify other combinators that the module-chest was destroyed
-			cc_control.update_chests(entity_surface, combinator.module_chest, true)
+			script.raise_event(defines.events.script_raised_destroy, {entity = combinator.module_chest, cc_entity_died = true})
 			combinator.module_chest.destroy()
 		elseif event_name == defines.events.on_player_mined_entity then
 			-- Need to mine module chest first, success == true
@@ -143,11 +150,6 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 		if entity_type == 'assembling-machine' then
 			cc_control.update_assemblers(entity_surface, entity, true)
 		end
-	end
-
-	-- Notify other combinators that a container was destroyed (including module-chest)
-	if util.CONTAINER_TYPES[entity_type] then
-		cc_control.update_chests(entity_surface, entity, true)
 	end
 end
 

@@ -144,20 +144,40 @@ function _M.mine_module_chest(unit_number, player_index)
 	end
 end
 
-function _M.update_assemblers(surface, assembler, ignore)
+function _M.update_assemblers(surface, assembler, is_destroyed)
 	local combinators = surface.find_entities_filtered {
 		area = util.area(assembler.prototype.selection_box):expand(config.ASSEMBLER_SEARCH_DISTANCE) + assembler.position,
 		name = config.CC_NAME,
 	}
-	for _, entity in pairs(combinators) do global.cc.data[entity.unit_number]:find_assembler(ignore and assembler or nil); end
+	for _, entity in pairs(combinators) do
+		local combinator = global.cc.data[entity.unit_number]
+		if is_destroyed then
+			if assembler == combinator.assembler then
+				combinator.assembler = nil
+				combinator.inventories.assembler = {}
+			end
+		else
+			combinator:find_assembler()
+		end
+	end
 end
 
-function _M.update_chests(surface, chest, ignore)
+function _M.update_chests(surface, chest, is_destroyed)
 	local combinators = surface.find_entities_filtered {
 		area = util.area(chest.prototype.selection_box):expand(config.CHEST_SEARCH_DISTANCE) + chest.position,
 		name = config.CC_NAME,
 	}
-	for _, entity in pairs(combinators) do global.cc.data[entity.unit_number]:find_chest(ignore and chest or nil); end
+	for _, entity in pairs(combinators) do
+		local combinator = global.cc.data[entity.unit_number]
+		if is_destroyed then
+			if chest == combinator.chest then
+				combinator.chest = nil
+				combinator.inventories.chest = nil
+			end
+		else
+			combinator:find_chest()
+		end
+	end
 end
 
 local params = {data = {}}
@@ -176,8 +196,7 @@ function _M:update()
 				self.read_mode_cb = false
 			end
 			self:set_recipe()
-		--elseif self.settings.mode == 'r' then
-		else
+		else --self.settings.mode == 'r'
 			self.read_mode_cb = true
 			params:clear()
 			if self.settings.read_recipe then self:read_recipe(params.data); end
@@ -580,12 +599,12 @@ function _M:empty_inserters()
 	return true
 end
 
-function _M:find_assembler(assembler_to_ignore)
+function _M:find_assembler()
 	self.assembler = self.entity.surface.find_entities_filtered {
 		position = util.position(self.entity.position):shift(self.entity.direction, config.ASSEMBLER_DISTANCE),
 		type = 'assembling-machine',
 	}[1]
-	if self.assembler and (self.assembler == assembler_to_ignore or self.assembler.prototype.fixed_recipe) then
+	if self.assembler and self.assembler.prototype.fixed_recipe then
 		self.assembler = nil
 	end
 	
@@ -595,16 +614,17 @@ function _M:find_assembler(assembler_to_ignore)
 			input = self.assembler.get_inventory(defines.inventory.assembling_machine_input),
 			modules = self.assembler.get_inventory(defines.inventory.assembling_machine_modules),
 		}
-	else self.inventories.assembler = {}; end
+	else
+		self.inventories.assembler = {}
+	end
 end
 
-function _M:find_chest(chest_to_ignore)
+function _M:find_chest()
 	local direction = util.direction(self.entity.direction):rotate(CHEST_DIRECTIONS[self.settings.chest_position])
 	self.chest = self.entity.surface.find_entities_filtered {
 		position = util.position(self.entity.position):shift(direction, config.CHEST_DISTANCE),
 		type = {'container', 'logistic-container'},
 	}[1]
-	if self.chest == chest_to_ignore then self.chest = nil; end
 	self.inventories.chest = self.chest and self.chest.get_inventory(defines.inventory.chest)
 end
 
