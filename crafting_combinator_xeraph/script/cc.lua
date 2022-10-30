@@ -391,9 +391,6 @@ function _M:set_recipe()
 
 	-- If selected recipe is same as current_assembler_recipe then return
 	if (recipe == current_assembler_recipe) then return true end
-	
-	-- Tag to indicate a new recipe has to be set, false indicates recipe has to be cleared
-	local assembler_has_recipe = false
 
 	-- set_recipe() decision proper:
 	-- Switch 1: Assembler has a current recipe, and requires a change of recipe or clearing of recipe
@@ -412,8 +409,6 @@ function _M:set_recipe()
 			self.sticky = true
 			return true
 		end
-
-		if recipe then assembler_has_recipe = true end
 
 		-- Move items if necessary
 		local success, error = self:move_items()
@@ -436,10 +431,6 @@ function _M:set_recipe()
 
 		-- Move modules if necessary
 		if recipe then self:move_modules(recipe); end
-
-	-- Switch 2: Assembler does not have a recipe, and requires setting a new recipe
-	elseif (not current_assembler_recipe) and recipe then
-		assembler_has_recipe = true
 	end
 
 	-- Finally attempt to switch/clear the recipe
@@ -447,19 +438,22 @@ function _M:set_recipe()
 
 	-- Check if assembler successfully switched recipe
 	local new_assembler_recipe = self.assembler.get_recipe()
+	local assembler_has_recipe = false
 		
-	if new_assembler_recipe and new_assembler_recipe ~= recipe then
+	if new_assembler_recipe and new_assembler_recipe ~= recipe then -- failed to change recipe?
 		self.assembler.set_recipe(nil) -- failsafe for setting the wrong/forbidden recipe??
 		--TODO: Some notification?
 		self.last_assembler_recipe = false
+		assembler_has_recipe = false
 	else
 		self.last_assembler_recipe = new_assembler_recipe
+		assembler_has_recipe = true
 	end
 	
 	if assembler_has_recipe then
 		-- Move modules and items back into the machine
 		self:insert_modules()
-		self:insert_items()
+		self:insert_items(new_assembler_recipe)
 	end
 
 	self.allow_sticky = true
@@ -502,17 +496,39 @@ function _M:insert_modules()
 	end
 end
 
-function _M:insert_items()
-	local inventory = self.inventories.chest
-	if not inventory or not inventory.valid or inventory.is_empty() then return; end
+function _M:insert_items(recipe)
+	if not recipe or not recipe.valid then return end
+
+	local source = self.inventories.chest
+	if not source or not source.valid or source.is_empty() then return; end
+
 	local target = self.inventories.assembler.input
-	
-	for i = 1, #inventory do
-		local stack = inventory[i]
-		if stack.valid_for_read then
-			local r = target.insert(stack)
-			if r < stack.count then stack.count = stack.count - r
-			else stack.clear(); end
+	local ingredients = recipe.ingredients
+	for i = 1, #ingredients do
+		if ingredients[i].type == "item" then
+			local amount = ingredients[i].amount * 2
+
+			while amount > 0 do
+				local stack = source.find_item_stack(ingredients[i].name)
+				-- no itemstack found - break loop
+				if not stack then break end
+
+				local found = stack.count
+				-- if the item stack is larger than desired amount, reduce stack to desired amount
+				if found > amount then stack.count = amount	end
+
+				-- attempt to insert item stack
+				local inserted = target.insert(stack)
+
+				-- update final stack count
+				stack.count = found - inserted
+
+				-- items cannot be inserted - different durability? health? - break loop
+				if inserted == 0 then break end
+				
+				-- update desired amount
+				amount = amount - inserted
+			end
 		end
 	end
 end

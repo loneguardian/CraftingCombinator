@@ -7,6 +7,7 @@ Date: ????
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
     - Fixed GUI behaviour when its associated cc/rc is destroyed
+    - Fixed cc inserting all items during recipe change (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197)
   Features:
     - Blueprints and ghosts now carry cc and rc data
     - New sticky behaviour: Craft-n-before-switch
