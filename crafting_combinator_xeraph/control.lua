@@ -90,7 +90,7 @@ end
 
 local function save_dead_combinator_settings(uid, settings)
 	-- entry is created during on_entity_died and removed during on_post_entity_died
-	global.dead_combinator_settings[uid] = util.deepcopy(settings)
+	global.dead_combinator_settings[uid] = settings
 end
 
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy

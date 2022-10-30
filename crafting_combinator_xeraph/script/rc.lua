@@ -52,19 +52,18 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity, tags)
-	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
+function _M.create(entity, tags, migrated_state)
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
-		output_proxy = entity.surface.create_entity {
+		output_proxy = (migrated_state and migrated_state.output_proxy) or entity.surface.create_entity {
 			name = config.RC_PROXY_NAME,
 			position = entity.position,
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		input_control_behavior = entity.get_or_create_control_behavior(),
-		settings = util.deepcopy(tag_settings or config.RC_DEFAULT_SETTINGS),
+		input_control_behavior = (migrated_state and migrated_state.input_control_behaviour) or entity.get_or_create_control_behavior(),
+		settings = util.merge_combinator_settings(config.RC_DEFAULT_SETTINGS, tags, migrated_state),
 		last_signal = false,
 		last_name = false,
 		last_count = false

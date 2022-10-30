@@ -138,4 +138,20 @@ function _M.area.__mt:__sub(other)
 	return self + (-other)
 end
 
+function _M.merge_combinator_settings(default_settings, tags, migrated_state)
+	local tag_settings = (tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings)
+	if tag_settings then return tag_settings end
+	
+	local migrated_settings = migrated_state and migrated_state.settings
+	local settings = _M.deepcopy(default_settings)
+	if migrated_settings then
+		for k, v in pairs(migrated_settings) do
+			if settings[k] and (type(settings[k]) == type(v)) then
+				settings[k] = v
+			end
+		end
+	end
+	return settings
+end
+
 return _M

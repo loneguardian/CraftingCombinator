@@ -43,19 +43,18 @@ end
 
 -- Lifecycle events
 
-function _M.create(entity, tags)
-	local tag_settings = tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings
+function _M.create(entity, tags, migrated_state)
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
-		control_behavior = entity.get_or_create_control_behavior(),
-		module_chest = entity.surface.create_entity {
+		control_behavior = (migrated_state and migrated_state.control_behaviour) or entity.get_or_create_control_behavior(),
+		module_chest = (migrated_state and migrated_state.module_chest) or entity.surface.create_entity {
 			name = config.MODULE_CHEST_NAME,
 			position = entity.position,
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		settings = util.deepcopy(tag_settings or config.CC_DEFAULT_SETTINGS),
+		settings = util.merge_combinator_settings(config.CC_DEFAULT_SETTINGS, tags, migrated_state),
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -65,9 +64,7 @@ function _M.create(entity, tags)
 		read_mode_cb = false,
 		sticky = false,
 		allow_sticky = true,
-		craft_n_before_switch = {
-			unstick_at_tick = 0
-		}
+		unstick_at_tick = 0
 	}, combinator_mt)
 	
 	combinator.module_chest.destructible = false
@@ -352,7 +349,7 @@ function _M:set_recipe()
 	-- Check sticky state and return early if still sticky
 	if self.sticky then
 		-- craft-n-before-switch
-		if game.tick >= self.craft_n_before_switch.unstick_at_tick then
+		if game.tick >= self.unstick_at_tick then
 			self.sticky = false
 			self.allow_sticky = false
 		else
@@ -405,7 +402,7 @@ function _M:set_recipe()
 
 			local delay = math.ceil((progress_remaining + full_craft_count) * ticks_per_craft)
 			
-			self.craft_n_before_switch.unstick_at_tick = game.tick + delay
+			self.unstick_at_tick = game.tick + delay
 			self.sticky = true
 			return true
 		end
@@ -457,7 +454,7 @@ function _M:set_recipe()
 	end
 
 	self.allow_sticky = true
-	
+
 	return true
 end
 

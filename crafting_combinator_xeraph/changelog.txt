@@ -2,23 +2,26 @@
 Version: 100.0.0
 Date: ????
   Info:
-    - Xeraph's edit (based on Crafting Combinator 0.16.3)
+    - First release of Xeraph's fork (based on Crafting Combinator 0.16.3)
     - Migration to this version will acknowledge the removal of 'crafting_combinator:settings-entity (programmable-speaker)' and its related objects, this is expected
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
     - Fixed GUI behaviour when its associated cc/rc is destroyed
-    - Fixed cc inserting all items during recipe change (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197)
+    - Fixed cc's tendency to insert all items during recipe change (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197), cc will only insert ingredients for two craft cycles from now on
   Features:
     - Blueprints and ghosts now carry cc and rc data
     - New sticky behaviour: Craft-n-before-switch
-      - This behaviour addresses the changing or flip-flopping of recipes due to the loss of signal caused by crafting machine's buffer (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
-      - This is how it currently works: if a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any signal change
-      - By default a new/migrated cc is set to Craft-1-before-switch
+      - This behaviour addresses the changing or flip-flopping of recipes due to the fluctuation of signals caused by crafting machine's buffer (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
+      - This is how it currently works:
+        - If a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any signal change
+        - Once sticky period is over, the cc will evaluate the signals and change recipe if necessary - for one update cycle, after which the cc will be eligible to enter sticky mode again
+        - The duration of sticky period is only evaluated once per sticky mode activation, based on machine's crafting progress and speed. Actual product is not taken into account in bringing the cc out of sticky mode - this is the intended design for UPS reason
+      - By default a new/migrated cc is set to allow one more craft cycle before recipe switch
   Locale:
     - Fixed duplicate key for cs.cfg
     - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip', [blueprint]
   Changes:
-    - Optimized idle performance (https://github.com/theRustyKnife/CraftingCombinator/pull/71)
+    - Optimized idle performance (https://github.com/theRustyKnife/CraftingCombinator/pull/71). As a result from this optimization, the combinator will no longer attempt to switch recipe if the chosen recipe/state of no recipe is the same as the previous update cycle
     - Event registration now uses filters
     - Improved event handling for module chest, uses mine-entity instead of manual inventory management
     - Depreciated the usage of programmable speaker to store bp settings (settings-parser module)
