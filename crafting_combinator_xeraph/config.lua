@@ -16,14 +16,15 @@ return {
 	CC_DEFAULT_SETTINGS = {
 		chest_position = 1, -- 1 = Behind, 2 = Left, 3 = Right
 		mode = 'w',
+		wait_for_output_to_clear = false,
 		discard_items = false,
 		discard_fluids = true,
 		empty_inserters = true,
-		craft_n_before_switch = 1,
-		craft_until_zero = false,
 		read_recipe = true,
 		read_speed = false,
-		read_bottleneck = false,
+		read_machine_status = false,
+		craft_until_zero = false,
+		craft_n_before_switch = 1
 	},
 	RC_DEFAULT_SETTINGS = {
 		mode = 'ing',

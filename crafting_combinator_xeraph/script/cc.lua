@@ -72,6 +72,15 @@ function _M.create(entity, tags, migrated_state)
 	
 	global.cc.data[entity.unit_number] = combinator
 	table.insert(global.cc.ordered, combinator)
+
+	if migrated_state then
+		combinator.last_recipe = migrated_state.last_recipe
+		combinator.assembler = migrated_state.assembler
+		combinator.last_assembler_recipe = combinator.last_recipe
+		combinator.inventories = migrated_state.inventories
+		return
+	end
+	
 	combinator:find_assembler()
 	combinator:find_chest()
 	
