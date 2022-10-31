@@ -1,3 +1,4 @@
+require 'script.remote-interface'
 require 'script.bootstrap'
 
 local config = require 'config'
