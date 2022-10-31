@@ -74,10 +74,10 @@ function _M.create(entity, tags, migrated_state)
 	table.insert(global.cc.ordered, combinator)
 
 	if migrated_state then
-		combinator.last_recipe = migrated_state.last_recipe
 		combinator.assembler = migrated_state.assembler
+		combinator.last_recipe = migrated_state.last_recipe or false
 		combinator.last_assembler_recipe = combinator.last_recipe
-		combinator.inventories = migrated_state.inventories
+		combinator.inventories = migrated_state.inventories or combinator.inventories
 		return
 	end
 	
@@ -191,7 +191,11 @@ function params:clear()
 	for i = 1, #self.data do self.data[i] = nil end
 end
 
-function _M:update()
+function _M:update(forced)
+	if forced then
+		params:clear()
+		self.control_behavior.parameters = params.data
+	end
 	if self.enabled and self.assembler and self.assembler.valid then
 		self.assembler.active = true
 
@@ -636,6 +640,8 @@ function _M:find_assembler()
 			input = self.assembler.get_inventory(defines.inventory.assembling_machine_input),
 			modules = self.assembler.get_inventory(defines.inventory.assembling_machine_modules),
 		}
+		self.last_assembler_recipe = self.assembler.get_recipe()
+		self.last_recipe = self.last_assembler_recipe
 	else
 		self.inventories.assembler = {}
 	end

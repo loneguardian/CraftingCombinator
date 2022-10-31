@@ -51,11 +51,11 @@ script.on_init(function()
 	signals.init_global()
 	init_global()
 	on_load(true)
-	migration_helper.migrate()
 end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
+	migration_helper.migrate(changes)
 	late_migrations(changes)
 	on_load(true)
 	enable_recipes()
@@ -105,15 +105,15 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 		cc_control.update_chests(entity_surface, entity, true)
 	end
 
-	-- Early return if script_raised_destroy is triggered by cc's on_entity_died
-	if event.cc_entity_died then return end
+	-- Skip cc destroy - by on_entity_died or self-raised script_raised_destroy
+	if event.skip_cc_destroy then return end
 
 	if entity_name == config.CC_NAME then
 		local uid = entity.unit_number
 		local combinator = global.cc.data[uid]
 		if event_name == defines.events.on_entity_died then
 			save_dead_combinator_settings(uid, combinator.settings)
-			script.raise_event(defines.events.script_raised_destroy, {entity = combinator.module_chest, cc_entity_died = true})
+			script.raise_event(defines.events.script_raised_destroy, {entity = combinator.module_chest, skip_cc_destroy = true})
 			combinator.module_chest.destroy()
 		elseif event_name == defines.events.on_player_mined_entity then
 			-- Need to mine module chest first, success == true
