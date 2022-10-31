@@ -146,7 +146,7 @@ function _M.merge_combinator_settings(default_settings, tags, migrated_state)
 	local settings = _M.deepcopy(default_settings)
 	if migrated_settings then
 		for k, v in pairs(migrated_settings) do
-			if settings[k] and (type(settings[k]) == type(v)) then
+			if type(settings[k]) == type(v) then
 				settings[k] = v
 			end
 		end

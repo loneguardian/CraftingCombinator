@@ -7,7 +7,7 @@ local signals = require 'script.signals'
 local util = require 'script.util'
 local gui = require 'script.gui'
 local blueprint = require 'script.blueprint'
---local housekeeping = require 'script.housekeeping'
+local migration_helper = require 'script.migration-helper'
 
 local cc_rate, rc_rate = 1, 1
 
@@ -51,14 +51,11 @@ script.on_init(function()
 	signals.init_global()
 	init_global()
 	on_load(true)
+	migration_helper.migrate()
 end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
-	--housekeeping.check_orphaned_combinator()
-	--housekeeping.check_uid()
-	--housekeeping.rebuild_ordered_table()
-
 	late_migrations(changes)
 	on_load(true)
 	enable_recipes()

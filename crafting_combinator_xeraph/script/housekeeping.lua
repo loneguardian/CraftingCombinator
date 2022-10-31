@@ -79,10 +79,6 @@ local check_uid = function()
 end
 
 -- local check_data_vs_ordered = function()
---     local count = 0
---     for k, v in pairs(global.cc.data) do
---         count = count + 1
---     end
 -- end
 
 -- local rebuild_ordered_table = function()
