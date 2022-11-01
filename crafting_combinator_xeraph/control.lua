@@ -46,6 +46,7 @@ local function init_global()
 	global.delayed_blueprint_tag_state = global.delayed_blueprint_tag_state or {}
 	global.dead_combinator_settings = global.dead_combinator_settings or {}
 	global.clone_placeholder = global.clone_placeholder or {}
+	global.main_uid_by_part_uid = global.main_uid_by_part_uid or {}
 end
 
 script.on_init(function()
@@ -89,13 +90,14 @@ local function on_built(event)
 end
 
 local function on_cloned(event)
-	---event.source
-	---event.destination
+	local entity = event.destination
+	if not (entity and entity.valid) then return end
 
-	if entity.name == config.CC_NAME then
-	elseif entity.name == config.MODULE_CHEST_NAME then
-	elseif entity.name == config.RC_NAME then
-	elseif entity.name == config.RC_PROXY_NAME then
+	-- main or part
+	if entity.name == config.CC_NAME or entity.name == config.RC_NAME then
+		clone_helper.on_main_cloned(event)
+	elseif entity.name == config.MODULE_CHEST_NAME or entity.name == config.RC_PROXY_NAME then
+		clone_helper.on_part_cloned(event)
 	end
 
 	-- assembler and containers
@@ -146,6 +148,7 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 		end
 		cc_control.destroy(entity)
 	elseif entity_name == config.MODULE_CHEST_NAME then
+		global.main_uid_by_part_uid[entity.unit_number] = nil
 		if event_name == defines.events.on_player_mined_entity then
 			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
 			-- Remove one cc from buffer because cc is the mine product
@@ -237,12 +240,16 @@ for container, _ in pairs(util.CONTAINER_TYPES) do
 	table.insert(filter_built_destroyed, {filter = "type", type = container})
 end
 
+-- filter for clone
+local filter_cloned = util.deepcopy(filter_built_destroyed)
+table.insert(filter_cloned, {filter = "name", name = config.RC_PROXY_NAME})
+
 -- entity built events
 script.on_event(defines.events.on_built_entity, on_built, filter_built_destroyed)
 script.on_event(defines.events.on_robot_built_entity, on_built, filter_built_destroyed)
 script.on_event(defines.events.script_raised_built, on_built, filter_built_destroyed)
 script.on_event(defines.events.script_raised_revive, on_built, filter_built_destroyed)
-script.on_event(defines.events.on_entity_cloned, on_cloned, filter_built_destroyed)
+script.on_event(defines.events.on_entity_cloned, on_cloned, filter_cloned)
 
 -- entity destroyed events
 script.on_event(defines.events.on_entity_died, on_destroyed, filter_built_destroyed)

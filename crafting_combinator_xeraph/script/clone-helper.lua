@@ -16,22 +16,55 @@ local on_load = function()
     clone_ph = global.clone_placeholder
 end
 
----Called in check_state()
----@param uid integer uid for old main entity
-local link_parts = function(uid)
-end
-
 ---Called everytime after the state for an entity part is constructed: on_main_cloned() on_part_cloned()
 ---@param uid integer uid for old main entity
-local check_state = function(uid)
-    -- if everything is complete:
-        -- link parts
-        -- release last_update key
-        -- push to data using new entity uid as key
-        -- push to ordered
-        -- release key from ph
-        -- update_chests (for module chest)
+local verify_partial_state = function(uid)
+    local new_entity = clone_ph[uid].entity
+    -- check if everything is complete:
+    if not(new_entity and new_entity.valid) then return end
+    
+    local entity_name = new_entity.name
+    if entity_name == config.CC_NAME then
+        if not(clone_ph[uid].module_chest and clone_ph[uid].module_chest.valid) then return end
+    else
+        if not(clone_ph[uid].output_proxy and clone_ph[uid].output_proxy.valid) then return end
+    end
+
+    -- release last_update key
+    clone_ph[uid].last_update = nil
+
+    -- push new uids to global.main_uid_by_part_uid
+    if entity_name == config.CC_NAME then
+        global.main_uid_by_part_uid[clone_ph[uid].module_chest.unit_number] = clone_ph[uid].entityUID
+    else
+        global.main_uid_by_part_uid[clone_ph[uid].output_proxy.unit_number] = clone_ph[uid].entityUID
+    end
+        
+    -- push to data using new entity uid as
+    if entity_name == config.CC_NAME then
+        global.cc.data[clone_ph[uid].entityUID] = clone_ph[uid]
+    else
+        global.rc.data[clone_ph[uid].entityUID] = clone_ph[uid]
+    end
+
+    -- push to ordered
+    if entity_name == config.CC_NAME then
+        table.insert(global.cc.ordered, clone_ph[uid])
+    else
+        table.insert(global.rc.ordered, clone_ph[uid])
+    end
+
+    if entity_name == config.CC_NAME then
         -- find_chest/assembler
+        clone_ph[uid]:find_chest()
+        clone_ph[uid]:find_assembler()
+
+        -- update_chests (for module chest)
+        clone_ph[uid].update_chests(new_entity.surface, clone_ph[uid].module_chest)
+    end
+
+    -- release key from ph
+    clone_ph[uid] = nil
 end
 
 ---Handler for when main entities are cloned
@@ -56,22 +89,28 @@ local on_main_cloned = function(event)
 
         -- remove references to old parts
         if entity_name == config.CC_NAME then
-            clone_ph[old_main_uid].module_chest = nil
-            clone_ph[old_main_uid].inventories.module_chest = nil
+            clone_ph[old_main_uid].module_chest = false
+            clone_ph[old_main_uid].inventories.module_chest = false
         else
+            clone_ph[old_main_uid].output_proxy = false
+            clone_ph[old_main_uid].control_behavior = false
         end
     end
 
     -- update references to new main
     clone_ph[old_main_uid].entity = new_entity
     clone_ph[old_main_uid].entityUID = new_entity.unit_number
-    clone_ph[old_main_uid].control_behaviour = new_entity.get_or_create_control_behavior()
+    if entity_name == config.CC_NAME then
+        clone_ph[old_main_uid].control_behaviour = new_entity.get_or_create_control_behavior()
+    else
+        clone_ph[old_main_uid].input_control_behavior = new_entity.get_or_create_control_behavior()
+    end
 
     -- last_update = event.tick
     clone_ph[old_main_uid].last_update = event.tick
 
-    -- check_state() if partial state is not new
-    if not is_new_partial_state then check_state(old_main_uid) end
+    -- verify_partial_state() if partial state is not new
+    if not is_new_partial_state then verify_partial_state(old_main_uid) end
 end
 
 ---Handler for when part/accesory entities are cloned
@@ -81,7 +120,7 @@ local on_part_cloned = function(event)
     if not (new_entity and new_entity.valid) then return end
 
     local entity_name = new_entity.name
-    local old_main_uid = global.cc.main_uid_by_part_uid[event.source.unit_number]
+    local old_main_uid = global.main_uid_by_part_uid[event.source.unit_number]
     local is_new_partial_state = false
     -- check for partially constructed state (existing key)
     if not clone_ph[old_main_uid] then
@@ -95,11 +134,12 @@ local on_part_cloned = function(event)
         end
 
         -- remove references to old main
+        clone_ph[old_main_uid].entity = false
+        clone_ph[old_main_uid].entityUID = false
         if entity_name == config.MODULE_CHEST_NAME then
-            clone_ph[old_main_uid].entity = nil
-            clone_ph[old_main_uid].entityUID = nil
-            clone_ph[old_main_uid].control_behaviour = nil
+            clone_ph[old_main_uid].control_behaviour = false
         else
+            clone_ph[old_main_uid].input_control_behavior = false
         end
     end
 
@@ -108,13 +148,15 @@ local on_part_cloned = function(event)
         clone_ph[old_main_uid].module_chest = new_entity
         clone_ph[old_main_uid].inventories.module_chest = new_entity.get_inventory(defines.inventory.chest)
     else
+        clone_ph[old_main_uid].output_proxy = new_entity
+        clone_ph[old_main_uid].control_behavior = new_entity.get_or_create_control_behavior()
     end
 
     -- last_update = event.tick
     clone_ph[old_main_uid].last_update = event.tick
     
-    -- check_state() if partial state is not new
-    if not is_new_partial_state then check_state(old_main_uid) end
+    -- verify_partial_state() if partial state is not new
+    if not is_new_partial_state then verify_partial_state(old_main_uid) end
 end
 
 ---Called by on_nth_tick() for placeholder clean up
@@ -140,13 +182,6 @@ local clean_up = function(event)
             clone_ph[k] = nil
         end
     end
-end
-
----Called when a cc / rc state is not found, usually from clicking of incomplete rc / cc entity to open gui.
----Function checks for partially constructed state. When found, deletes incomplete entities and state and informs that cloning was not complete.
----@param event any
-local on_state_not_found = function(event)
-    
 end
 
 return {

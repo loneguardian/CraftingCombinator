@@ -70,6 +70,7 @@ function _M.create(entity, tags, migrated_state)
 	combinator.module_chest.destructible = false
 	combinator.inventories.module_chest = combinator.module_chest.get_inventory(defines.inventory.chest)
 
+	global.main_uid_by_part_uid[combinator.module_chest.unit_number] = combinator.entityUID
 	global.cc.data[entity.unit_number] = combinator
 	table.insert(global.cc.ordered, combinator)
 
@@ -162,6 +163,7 @@ function _M.update_assemblers(surface, assembler, is_destroyed)
 	}
 	for _, entity in pairs(combinators) do
 		local combinator = global.cc.data[entity.unit_number]
+		if not combinator then return end
 		if is_destroyed then
 			if assembler == combinator.assembler then
 				combinator.assembler = nil
@@ -180,6 +182,7 @@ function _M.update_chests(surface, chest, is_destroyed)
 	}
 	for _, entity in pairs(combinators) do
 		local combinator = global.cc.data[entity.unit_number]
+		if not combinator then return end
 		if is_destroyed then
 			if chest == combinator.chest then
 				combinator.chest = nil

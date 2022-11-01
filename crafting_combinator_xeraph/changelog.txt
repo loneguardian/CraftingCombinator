@@ -18,6 +18,7 @@ Date: ????
         - Once sticky period is over, the cc will evaluate the signals and change recipe if necessary - for one update cycle, after which the cc will be eligible to enter sticky mode again
         - The duration of sticky period is only evaluated once per sticky mode activation, based on machine's crafting progress and speed. Actual product is not taken into account in bringing the cc out of sticky mode - this is the intended design for UPS reason
       - By default a new/migrated cc is set to allow one more craft cycle before recipe switch
+    - Cloning of cc and rc is now handled (BETA) (e.g. SE Spaceship)
   Locale:
     - Fixed duplicate key for cs.cfg
     - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip', [blueprint]

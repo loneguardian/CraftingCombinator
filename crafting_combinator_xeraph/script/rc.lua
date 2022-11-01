@@ -82,6 +82,7 @@ function _M.create(entity, tags, migrated_state)
 	combinator.output_proxy.destructible = false
 	combinator.control_behavior = combinator.output_proxy.get_or_create_control_behavior()
 	
+	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = combinator.entityUID
 	global.rc.data[entity.unit_number] = combinator
 	table.insert(global.rc.ordered, combinator)
 end
@@ -93,6 +94,7 @@ function _M.destroy(entity)
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
 	
+	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = nil
 	combinator.output_proxy.destroy()
 	signals.cache.drop(unit_number)
 	
