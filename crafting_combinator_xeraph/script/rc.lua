@@ -62,7 +62,7 @@ function _M.create(entity, tags, migrated_state)
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		input_control_behavior = (migrated_state and migrated_state.input_control_behaviour) or entity.get_or_create_control_behavior(),
+		input_control_behavior = (migrated_state and migrated_state.input_control_behavior) or entity.get_or_create_control_behavior(),
 		settings = util.merge_combinator_settings(config.RC_DEFAULT_SETTINGS, tags, migrated_state),
 		last_signal = false,
 		last_name = false,

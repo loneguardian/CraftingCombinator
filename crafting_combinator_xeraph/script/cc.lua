@@ -47,7 +47,7 @@ function _M.create(entity, tags, migrated_state)
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
-		control_behavior = (migrated_state and migrated_state.control_behaviour) or entity.get_or_create_control_behavior(),
+		control_behavior = (migrated_state and migrated_state.control_behavior) or entity.get_or_create_control_behavior(),
 		module_chest = (migrated_state and migrated_state.module_chest) or entity.surface.create_entity {
 			name = config.MODULE_CHEST_NAME,
 			position = entity.position,
@@ -136,21 +136,30 @@ function _M.mine_module_chest(unit_number, player_index)
 			return success
 		else
 			-- Clone the combinator entity as replacement
+			-- Set the skip_clone_helper tag
+			combinator.skip_clone_helper = true
+			gui.destroy_entity_gui(unit_number)
 			local old_entity = combinator.entity
 			combinator.entity = old_entity.clone { position = old_entity.position, create_build_effect_smoke = false }
 			combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
-
-			-- Replace the entity if a player was trying to pick it up
+			
 			local new_uid = combinator.entity.unit_number
-			gui.destroy_entity_gui(unit_number)
-			global.cc.data[unit_number] = nil
-			global.cc.data[new_uid] = combinator
 			combinator.entityUID = new_uid
+
+			-- Transfer signals cache
+			local signals_cache = global.signals.cache[unit_number]
+			if signals_cache then
+				signals_cache.__entity = combinator.entity
+				global.signals.cache[new_uid] = signals_cache
+				global.signals.cache[unit_number] = nil
+			end
 
 			for _, connection in pairs(old_entity.circuit_connection_definitions) do
 				combinator.entity.connect_neighbour(connection)
 			end
 
+			global.cc.data[new_uid] = combinator
+			global.cc.data[unit_number] = nil
 			old_entity.destroy()
 		end
 	end
