@@ -10,7 +10,8 @@ local blueprint = require 'script.blueprint'
 local migration_helper = require 'script.migration-helper'
 local clone_helper = require 'script.clone-helper'
 
-local cc_rate, rc_rate = 1, 1
+local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
+local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
 
 local function enable_recipes()
 	for _, force in pairs(game.forces) do
@@ -28,8 +29,6 @@ local function on_load(forced)
 	rc_control.on_load()
 	signals.on_load()
 	clone_helper.on_load()
-	cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
-	rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)
@@ -44,7 +43,6 @@ end
 
 local function init_global()
 	global.delayed_blueprint_tag_state = global.delayed_blueprint_tag_state or {}
-	global.dead_combinator_settings = global.dead_combinator_settings or {}
 	global.clone_placeholder = global.clone_placeholder or {}
 	global.main_uid_by_part_uid = global.main_uid_by_part_uid or {}
 end
@@ -168,8 +166,11 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 end
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-	cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
-	rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
+	if event.setting == config.REFRESH_RATE_CC_NAME then
+		cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
+	elseif event.setting == config.REFRESH_RATE_RC_NAME then
+		rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
+	end
 end)
 
 local function run_update(tab, tick, rate)
