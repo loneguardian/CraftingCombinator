@@ -100,7 +100,7 @@ local migrate_by_entity_scan = function(migrated_uids)
 
     -- destroy redundant output proxy
     for _, output_proxy in pairs(entity_by_uid.output_proxy) do
-        output_proxy.destroy({raise_destroy = true})
+        output_proxy.destroy()
         count.destroyed.output_proxy = count.destroyed.output_proxy + 1
     end
 

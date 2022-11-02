@@ -62,7 +62,7 @@ function _M.create(entity, tags, migrated_state)
 			force = entity.force,
 			create_build_effect_smoke = false,
 		},
-		input_control_behavior = (migrated_state and migrated_state.input_control_behaviour) or entity.get_or_create_control_behavior(),
+		input_control_behavior = (migrated_state and migrated_state.input_control_behavior) or entity.get_or_create_control_behavior(),
 		settings = util.merge_combinator_settings(config.RC_DEFAULT_SETTINGS, tags, migrated_state),
 		last_signal = false,
 		last_name = false,
@@ -82,17 +82,21 @@ function _M.create(entity, tags, migrated_state)
 	combinator.output_proxy.destructible = false
 	combinator.control_behavior = combinator.output_proxy.get_or_create_control_behavior()
 	
+	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = combinator.entityUID
 	global.rc.data[entity.unit_number] = combinator
 	table.insert(global.rc.ordered, combinator)
 end
 
+---Destroy method for rc state
+---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
-	local unit_number = entity.unit_number
+	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
 	local combinator = global.rc.data[unit_number]
 
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
 	
+	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = nil
 	combinator.output_proxy.destroy()
 	signals.cache.drop(unit_number)
 	
