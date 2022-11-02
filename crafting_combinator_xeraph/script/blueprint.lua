@@ -176,9 +176,18 @@ local on_post_entity_died = function(event)
   local unit_number = event.unit_number
   if not unit_number then return end
 
-  local settings_data = global.dead_combinator_settings[unit_number]
-  if not settings_data then return end
-
+  local ghost_name = event.ghost.ghost_name
+  local combinator
+  if ghost_name == config.CC_NAME then
+    combinator = global.cc.data[unit_number]
+  elseif ghost_name == config.RC_NAME then
+    combinator = global.rc.data[unit_number]
+  else
+    return
+  end
+  if not combinator then return end
+  
+  local settings_data = combinator.settings
   local ghost = event.ghost
   if (ghost and ghost.valid) then
     local tags = ghost.tags or {}
@@ -186,7 +195,7 @@ local on_post_entity_died = function(event)
     ghost.tags = tags
   end
 
-  global.dead_combinator_settings[unit_number] = nil
+  combinator.destroy(unit_number)
 end
 
 local event_handlers = {

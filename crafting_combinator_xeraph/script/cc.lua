@@ -95,19 +95,21 @@ end
 -- if a cc is marked for deconstruction? (this should not happen because of 'not-deconstructable' flag
 
 function _M.on_module_chest_marked_for_decon(entity)
-	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
+	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	combinator.enabled = false
 	combinator:update()
 end
 
 function _M.on_module_chest_cancel_decon(entity)
-	local combinator = global.cc.data[entity.surface.find_entity(config.CC_NAME, entity.position).unit_number]
+	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	combinator.enabled = true
 	combinator:update()
 end
 
+---Destroy method for cc state
+---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
-	local unit_number = entity.unit_number
+	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
 
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
@@ -533,9 +535,9 @@ function _M:insert_items(recipe)
 	for i = 1, #ingredients do
 		if ingredients[i].type == "item" then
 			local amount = ingredients[i].amount * 2
-
+			local ingredient_name = ingredients[i].name
 			while amount > 0 do
-				local stack = source.find_item_stack(ingredients[i].name)
+				local stack = source.find_item_stack(ingredient_name)
 				-- no itemstack found - break loop
 				if not stack then break end
 

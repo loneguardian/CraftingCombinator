@@ -87,8 +87,10 @@ function _M.create(entity, tags, migrated_state)
 	table.insert(global.rc.ordered, combinator)
 end
 
+---Destroy method for rc state
+---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
-	local unit_number = entity.unit_number
+	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
 	local combinator = global.rc.data[unit_number]
 
 	-- closes gui for entity if it is opened

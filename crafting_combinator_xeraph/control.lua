@@ -109,11 +109,6 @@ local function on_cloned(event)
 	end
 end
 
-local function save_dead_combinator_settings(uid, settings)
-	-- entry is created during on_entity_died and removed during on_post_entity_died
-	global.dead_combinator_settings[uid] = settings
-end
-
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
@@ -132,9 +127,7 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	if entity_name == config.CC_NAME then
 		local uid = entity.unit_number
 		local combinator = global.cc.data[uid]
-		if event_name == defines.events.on_entity_died then
-			save_dead_combinator_settings(uid, combinator.settings)
-		elseif event_name == defines.events.on_player_mined_entity then
+		if event_name == defines.events.on_player_mined_entity then
 			-- Need to mine module chest first, success == true
 			if not cc_control.mine_module_chest(uid, event.player_index) then
 				-- Unable to mine module chest, cc cloned and replaced - remove cc from buffer, then return
@@ -142,33 +135,31 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 				return
 			end
 		end
-		if event_name == defines.on_entity_died or event_name == defines.events.script_raised_destroy then
-			script.raise_event(defines.events.script_raised_destroy, {entity = combinator.module_chest, skip_cc_destroy = true})
+		if event_name == defines.events.on_entity_died or event_name == defines.events.script_raised_destroy then
+			cc_control.update_chests(entity_surface, combinator.module_chest, true)
 			combinator.module_chest.destroy()
 		end
-		cc_control.destroy(entity)
+		if event_name ~= defines.events.on_entity_died then -- need state data until post_entity_died
+			cc_control.destroy(entity)
+		end
 	elseif entity_name == config.MODULE_CHEST_NAME then
-		global.main_uid_by_part_uid[entity.unit_number] = nil
+		local uid = entity.unit_number
 		if event_name == defines.events.on_player_mined_entity then
 			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
 			-- Remove one cc from buffer because cc is the mine product
 			event.buffer.remove({name=config.CC_NAME, count=1})
-		elseif event_name == defines.events.on_robot_mined_entity
-		or event_name == defines.events.script_raised_destroy then
-			-- This signifies that the module chest will be destroyed
-			-- Skip cc destroy - by on_entity_died or self-raised script_raised_destroy
-			if not event.skip_cc_destroy then
-				-- Get cc_entity and raise script destroy for cc
-				local cc_entity = entity_surface.find_entity(config.CC_NAME, entity.position)
-				if cc_entity and cc_entity.valid then cc_entity.destroy({raise_destroy = true}) end
+		elseif event_name == defines.events.on_robot_mined_entity or event_name == defines.events.script_raised_destroy then
+			local cc_entity = global.cc.data[global.main_uid_by_part_uid[uid]].entity
+			if cc_entity and cc_entity.valid then
+				cc_control.destroy(entity)
+				cc_entity.destroy()
 			end
 		end
+		global.main_uid_by_part_uid[uid] = nil
 	elseif entity_name == config.RC_NAME then
-		if event_name == defines.events.on_entity_died then
-			local uid = entity.unit_number
-			save_dead_combinator_settings(uid, global.rc.data[uid].settings)
+		if event_name ~= defines.events.on_entity_died then -- need state data until post_entity_died
+			rc_control.destroy(entity)
 		end
-		rc_control.destroy(entity)
 	else
 		if entity_type == 'assembling-machine' then
 			cc_control.update_assemblers(entity_surface, entity, true)
@@ -259,7 +250,7 @@ script.on_event(defines.events.script_raised_destroy, on_destroyed, filter_built
 
 -- additional blueprint events
 script.on_event(defines.events.on_player_setup_blueprint, blueprint.handle_event)
-script.on_event(defines.events.on_post_entity_died, blueprint.handle_event)
+script.on_event(defines.events.on_post_entity_died, blueprint.handle_event, {{filter = "type", type = "constant-combinator"}, {filter = "type", type = "arithmetic-combinator"}})
 
 -- decontruction events
 script.on_event(

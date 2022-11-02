@@ -1,8 +1,11 @@
 if not late_migrations then return end
 
-late_migrations["0.1.0"] = function()
+late_migrations["0.1.2"] = function()
+    -- remove obsolete globals
+    if global.dead_combinator_settings then global.dead_combinator_settings = nil end
+
     global.clone_placeholder = global.clone_placeholder or {}
-    global.main_uid_by_part_uid = global.main_uid_by_part_uid or {}
+    global.main_uid_by_part_uid = {}
 
     -- populate global.main_uid_by_part_uid
     for k, v in pairs(global.cc.data) do
