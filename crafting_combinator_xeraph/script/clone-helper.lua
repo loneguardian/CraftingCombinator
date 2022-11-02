@@ -198,7 +198,7 @@ local clean_up = function(event)
     for k, v in pairs(clone_ph) do
         if v.last_update < event.tick then
             game.print("Partially cloned entity found. Entity will be destroyed.")
-            log("Entities destroyed for key: ", k)
+            log({"", "Entities destroyed for key: ", k})
             if v.entity and v.entity.valid then
                 log(v.entity.name)
                 v.entity.destroy()

@@ -96,6 +96,7 @@ end
 
 function _M.on_module_chest_marked_for_decon(entity)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
+	if not combinator then return end -- why is deconstruction event firing before cloning event?
 	combinator.enabled = false
 	combinator:update()
 end
