@@ -75,6 +75,13 @@ local on_main_cloned = function(event)
 
     local entity_name = new_entity.name
     local old_main_uid = event.source.unit_number
+    -- check for skip_clone_helper and return early
+    if entity_name == config.CC_NAME and global.cc.data[old_main_uid].skip_clone_helper then
+        global.cc.data[old_main_uid].skip_clone_helper = nil
+        return
+    end
+
+    local new_main_uid = new_entity.unit_number
     local is_new_partial_state = false
     -- check for partially constructed state (existing key)
     if not clone_ph[old_main_uid] then
@@ -99,11 +106,36 @@ local on_main_cloned = function(event)
 
     -- update references to new main
     clone_ph[old_main_uid].entity = new_entity
-    clone_ph[old_main_uid].entityUID = new_entity.unit_number
+    clone_ph[old_main_uid].entityUID = new_main_uid
     if entity_name == config.CC_NAME then
-        clone_ph[old_main_uid].control_behaviour = new_entity.get_or_create_control_behavior()
+        clone_ph[old_main_uid].control_behavior = new_entity.get_or_create_control_behavior()
     else
         clone_ph[old_main_uid].input_control_behavior = new_entity.get_or_create_control_behavior()
+    end
+
+    -- restore signal cache if present
+    local old_signal_cache = global.signals.cache[old_main_uid]
+    if old_signal_cache then
+        local cache = util.deepcopy(old_signal_cache)
+        cache.__entity = new_entity
+
+        local connected_entities = new_entity.circuit_connected_entities.red
+        for i=1,#connected_entities do
+            if connected_entities[i].name == config.SIGNAL_CACHE_NAME then
+                local cb = connected_entities[i].get_or_create_control_behavior()
+                if cb.circuit_condition.condition.comparator == "≤" then
+                    cache.__cache_entities.highest = connected_entities[i]
+                    cache.highest.__cb = cb
+                elseif cb.circuit_condition.condition.comparator == "≠" then
+                    cache.__cache_entities.highest_present = connected_entities[i]
+                    cache.highest_present.__cb = cb
+                elseif cb.circuit_condition.condition.comparator == "=" then
+                    cache.__cache_entities.highest_count = connected_entities[i]
+                    cache.highest_count.__cb = cb
+                end
+            end
+        end
+        global.signals.cache[new_main_uid] = cache
     end
 
     -- last_update = event.tick
@@ -137,7 +169,7 @@ local on_part_cloned = function(event)
         clone_ph[old_main_uid].entity = false
         clone_ph[old_main_uid].entityUID = false
         if entity_name == config.MODULE_CHEST_NAME then
-            clone_ph[old_main_uid].control_behaviour = false
+            clone_ph[old_main_uid].control_behavior = false
         else
             clone_ph[old_main_uid].input_control_behavior = false
         end

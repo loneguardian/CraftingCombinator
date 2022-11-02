@@ -9,6 +9,7 @@ _M.EVERYTHING = {type = 'virtual', name = 'signal-everything'}
 
 local cache_mt = {
 	__index = function(self, key)
+		if key == "__self" then return end -- __index __self is preventing deepcopy from functioning properly for clone-helper
 		local entity = self.__entity.surface.create_entity {
 			name = config.SIGNAL_CACHE_NAME,
 			position = self.__entity.position,
