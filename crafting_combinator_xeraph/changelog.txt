@@ -1,12 +1,12 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.0
+Version: 0.1.2
 Date: ????
   Info:
     - First release of Xeraph's fork (based on Crafting Combinator 0.16.3)
     - Migration to this version will acknowledge the removal of 'crafting_combinator:settings-entity (programmable-speaker)' and its related objects, this is expected
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
-    - Fixed GUI behaviour when its associated cc/rc is destroyed
+    - Fixed GUI not closing when its associated cc/rc is destroyed
     - Fixed cc's tendency to buffer all available items in the overflow chest after recipe switch (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197)
       - Cc will now insert ingredients for only two craft cycles
   Features:
@@ -15,10 +15,10 @@ Date: ????
       - This behaviour addresses the changing or flip-flopping of recipes due to the fluctuation of signals caused by crafting machine's buffer (be it in the input slot or the "limbo" while the machine is crafting) (https://github.com/theRustyKnife/CraftingCombinator/issues/64)
       - This is how it currently works:
         - If a cc needs to change or clear a recipe with the setting enabled (more than 0), it will enter sticky mode for that amount of craft cycles and not respond to any signal change
-        - Once sticky period is over, the cc will evaluate the signals and change recipe if necessary - for one update cycle, after which the cc will be eligible to enter sticky mode again
-        - The duration of sticky period is only evaluated once per sticky mode activation, based on machine's crafting progress and speed. Actual product is not taken into account in bringing the cc out of sticky mode - this is the intended design for UPS reason
+        - Once sticky period is over, the cc will evaluate the signals for one update cycle and change recipe if necessary, after which the cc will be allowed to engage sticky mode again
+        - The duration of sticky period is evaluated only once per sticky mode activation. It is calculated based on machine's crafting progress and speed. Actual product is not taken into account in bringing the cc out of sticky mode - this is the intended design for UPS reason
       - By default a new/migrated cc is set to allow one more craft cycle before recipe switch
-    - Cloning of cc and rc is now handled (BETA) (e.g. SE Spaceship)
+    - Cloning of cc and rc is now handled (BETA) (e.g. SE Spaceship, albeit module chest still has its chest inventory cost)
   Locale:
     - Fixed duplicate key for cs.cfg
     - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip', [blueprint]

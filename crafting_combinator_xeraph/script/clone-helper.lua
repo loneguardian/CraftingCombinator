@@ -146,7 +146,7 @@ local on_main_cloned = function(event)
 end
 
 ---Handler for when part/accesory entities are cloned
----@param event any Pass only module_chest or output_proxy clone events
+---@param event any Pass only module_chest, output_proxy and signal_cache_entities clone events
 local on_part_cloned = function(event)
     local new_entity = event.destination
     if not (new_entity and new_entity.valid) then return end
