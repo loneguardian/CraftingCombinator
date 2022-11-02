@@ -4,12 +4,7 @@ local table_size = table_size
 
 -- Clone placeholder - key: old main uid, value: new partial state
 -- Key should be released once the state construction is deemed complete
-
----@alias uid integer old main uid
-
----@class partial_state table new partial state being constructed
----@field last_update integer The tick when the partial_state was last updated
-
+---@alias partial_state table
 ---@type {[uid]: partial_state}
 local clone_ph
 local on_load = function()
@@ -17,7 +12,7 @@ local on_load = function()
 end
 
 ---Called everytime after the state for an entity part is constructed: on_main_cloned() on_part_cloned()
----@param uid integer uid for old main entity
+---@param uid uid for old main entity
 local verify_partial_state = function(uid)
     local new_entity = clone_ph[uid].entity
     -- check if everything is complete:

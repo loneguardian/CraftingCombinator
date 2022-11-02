@@ -138,6 +138,11 @@ function _M.area.__mt:__sub(other)
 	return self + (-other)
 end
 
+---Utility function to merge default settings with either tags or migrated state
+---@param default_settings table
+---@param tags? table
+---@param migrated_state? table
+---@return table
 function _M.merge_combinator_settings(default_settings, tags, migrated_state)
 	local tag_settings = (tags and tags.crafting_combinator_data and tags.crafting_combinator_data.settings)
 	if tag_settings then return tag_settings end
