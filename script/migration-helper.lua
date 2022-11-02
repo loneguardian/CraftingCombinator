@@ -1,6 +1,7 @@
 local config = require 'config'
 local cc_control = require 'script.cc'
 local rc_control = require 'script.rc'
+local signals = require 'script.signals'
 
 ---Second step of migration after remote data migration is complete.
 ---Performs entity scan and tries to build state data based on their positions or connections.
@@ -34,6 +35,7 @@ local migrate_by_entity_scan = function(migrated_uids)
         },
         cc_data_created = 0,
         rc_data_created = 0,
+        signal_cache_lamp_restored = 0,
         destroyed = {
             module_chest = 0,
             output_proxy = 0,
@@ -109,7 +111,6 @@ local migrate_by_entity_scan = function(migrated_uids)
                 combinator:find_assembler()
                 combinator:find_chest()
             end
-            combinator:update(true)
         end
     end
 
@@ -117,8 +118,8 @@ local migrate_by_entity_scan = function(migrated_uids)
     local part_list = { {entity_by_uid.module_chest, "module_chest"}, {entity_by_uid.output_proxy, "output_proxy"} }
     for i = 1, #part_list do
         local stat_key = part_list[i][2]
-        for _, entity in part_list[i][1] do
-            if i == 1 then
+        for _, entity in pairs(part_list[i][1]) do
+            if i == 1 then -- module-chest
                 cc_control.update_chests(entity.surface, entity)
             end
             entity.destroy()
@@ -128,17 +129,34 @@ local migrate_by_entity_scan = function(migrated_uids)
 
     -- signal cache
     -- use connections, if no valid connections destroy
-    for _, entity in pairs(entity_by_uid.signal_cache_lamp) do
-
+    for uid, lamp in pairs(entity_by_uid.signal_cache_lamp) do
+        if signals.migrate_lamp(lamp) then
+            entity_by_uid.signal_cache_lamp[uid] = nil
+            count.signal_cache_lamp_restored = count.signal_cache_lamp_restored + 1
+        end
     end
 
-    -- destroy redundant signal cache entities
+    -- destroy redundant lamps
+    for _, entity in pairs(entity_by_uid.signal_cache_lamp) do
+        entity.destroy()
+        count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
+    end
 
+    -- update combinators after signal cache migration so that no new signal lamps are created
+    for i, _ in pairs(main_list) do
+        local mains = main_list[i].mains
+        for uid, _ in pairs(mains) do
+            local combinator = main_list[i].main_data[uid]
+            combinator:update(true)
+        end
+    end
 
     log("[Crafting Combinator Xeraph's Fork] Migration-by-entity-scan summary:")
     log(serpent.block(count, { sortkeys = false }))
 end
 
+---First step of migration, migration of states by using remote call global data.
+---@return table migrated_uids
 local migrate_by_remote_data = function()
     if not remote.interfaces["crafting_combinator_xeraph_migration"] then return end
 
@@ -153,7 +171,9 @@ local migrate_by_remote_data = function()
         cc_migrated = 0,
         invalid_rc_entity = 0,
         invalid_output_proxy = 0,
-        rc_migrated = 0
+        rc_migrated = 0,
+        invalid_signal_cache_lamp = 0,
+        signal_cache_state_migrated = 0
     }
 
     -- migrated entities
@@ -193,6 +213,15 @@ local migrate_by_remote_data = function()
         end
     end
 
+    -- signal cache data
+    for uid, cache_state in pairs(migrated_state.signals.cache) do
+        for _, entity in pairs(cache_state.__cache_entities) do
+            migrated_uids[entity.unit_number] = true
+        end
+        signals.migrate(uid, cache_state)
+        count.signal_cache_state_migrated = count.signal_cache_state_migrated + 1
+    end
+
     log("[Crafting Combinator Xeraph's Fork] Migration-by-remote-data summary:")
     log(serpent.block(count, { sortkeys = false }))
 
@@ -201,16 +230,13 @@ local migrate_by_remote_data = function()
     return migrated_uids
 end
 
-return { migrate = function(changes)
-    if changes.mod_changes
-        and (changes.mod_changes.crafting_combinator and (not changes.mod_changes.crafting_combinator.new_version))
-        -- original mod removed
-        and
-        (
-        changes.mod_changes.crafting_combinator_xeraph and
-            (not changes.mod_changes.crafting_combinator_xeraph.old_version
-            )) then -- xeraph fork added
-        local migrated_uids = migrate_by_remote_data()
-        migrate_by_entity_scan(migrated_uids)
+return {
+    migrate = function(changes)
+        if not (changes and changes.mod_changes) then return end
+        if (changes.mod_changes.crafting_combinator and (not changes.mod_changes.crafting_combinator.new_version)) -- original mod removed
+        and (changes.mod_changes.crafting_combinator_xeraph and (not changes.mod_changes.crafting_combinator_xeraph.old_version)) then -- xeraph fork added
+            local migrated_uids = migrate_by_remote_data()
+            migrate_by_entity_scan(migrated_uids)
+        end
     end
-end }
+}

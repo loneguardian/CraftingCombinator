@@ -48,9 +48,64 @@ function _M.on_load()
 	for _, cache in pairs(global.signals.cache) do setmetatable(cache, cache_mt); end
 end
 
+---Method to migrate individual signal cache state into the game
+---@param cache_state table
+---@param uid uid  
+function _M.migrate(uid, cache_state)
+	global.signals.cache[uid] = setmetatable(cache_state, cache_mt)
+end
+
+---Method to migrate individual signal cache lamps into the game
+---@param lamp LuaEntity
+---@return boolean? true if migrate successful
+function _M.migrate_lamp(lamp)
+	-- check red connection for RC or CC entity, if no connection then destroy
+	local connected_entities = lamp.circuit_connected_entities.red
+	local combinator_entity, circuit_id
+	for i = 1, #connected_entities do
+		local entity = connected_entities[i]
+		if entity.name == config.CC_NAME then
+			combinator_entity = connected_entities[i]
+		elseif entity.name == config.RC_NAME then
+			combinator_entity = connected_entities[i]
+			circuit_id = defines.circuit_connector_id.combinator_input
+		end
+	end
+
+	if not combinator_entity then return end
+
+	-- get or create signal cache state
+	local cache = _M.cache.get(combinator_entity, circuit_id, combinator_entity.unit_number)
+
+	-- get cb
+	local cb = lamp.get_control_behavior()
+	if not (cb and cb.valid) then return end
+
+	local lamp_type
+	-- determine the type of lamp -- maybe can refactor into separate function - for ID-ing cloned lamps
+	if cb.circuit_condition.condition.first_signal.name == _M.EVERYTHING.name then
+		lamp_type = "highest"
+	elseif cb.circuit_condition.condition.comparator == "=" then
+		lamp_type = "highest_count"
+	elseif cb.circuit_condition.condition.comparator == "≠" then
+		lamp_type = "highest_present"
+	elseif cb.circuit_condition.condition.comparator == ">" then
+		lamp_type = "signal_present"
+	end
+	
+	cache.__cache_entities[lamp_type] = lamp
+	cache[lamp_type] = { __cb = cb }
+
+	return true
+end
 
 _M.cache = {}
 
+---Method to get cache state by entityUID
+---@param entity LuaEntity
+---@param circuit_id defines.circuit_connector_id.combinator_input
+---@param entityUID uid
+---@return table cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
 	local cache = global.signals.cache[entityUID]
 	if not cache then
@@ -64,7 +119,7 @@ function _M.cache.get(entity, circuit_id, entityUID)
 	return cache
 end
 
-function _M.cache.reset(entity, name)
+function _M.cache.reset(entity, name) -- not used? to reset already existing lamps?
 	local cache = global.signals.cache[entity.unit_number]
 	if cache and rawget(cache, name) then
 		global.signals.cache[entity.unit_number][name] = {
@@ -121,11 +176,11 @@ function _M.get_highest(entity, circuit_id, update_count, entityUID)
 	end
 	
 	local highest = nil
-	for _, signal in pairs(_M.get_merged_signals(entity, circuit_id)) do
+	for _, signal in pairs(_M.get_merged_signals(entity, circuit_id)) do -- it is an array why use pairs?
 		if highest == nil or signal.count > highest.count then highest = signal; end
 	end
 	
-	cache.highest.valid = true
+	cache.highest.valid = true ---? I can assign entity validity? or is it just a state?
 	
 	if highest then
 		cache.highest.value = highest
