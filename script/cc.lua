@@ -1,3 +1,25 @@
+---@alias unit_number integer Unique ID for entity
+---@alias uid unit_number
+
+
+---@class CC_Combinator A CC state
+---@field entityUID uid Combinator entity's uid
+---@field entity LuaEntity Combinator entity
+---@field control_behavior LuaControlBehavior Combinator's control behavior
+---@field assembler LuaEntity Assembler entity associated to this CC
+---@field module_chest LuaEntity Module chest entity associated to this CC
+---@field update function Method to update CC state
+
+---@class CC_Inventories
+---@field module_chest LuaInventory
+---@field chest LuaInventory
+---@field assembler Assembler_Inventories
+
+---@class Assembler_Inventories
+---@field input LuaInventory LEEE INPUT!
+---@field output LuaInventory
+
+
 local util = require 'script.util'
 local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
@@ -43,7 +65,12 @@ end
 
 -- Lifecycle events
 
+---Create method for cc state
+---@param entity LuaEntity
+---@param tags Tags
+---@param migrated_state? table
 function _M.create(entity, tags, migrated_state)
+	---@type CC_Combinator
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -55,6 +82,7 @@ function _M.create(entity, tags, migrated_state)
 			create_build_effect_smoke = false,
 		},
 		settings = util.merge_combinator_settings(config.CC_DEFAULT_SETTINGS, tags, migrated_state),
+		---@type CC_Inventories
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -82,8 +110,8 @@ function _M.create(entity, tags, migrated_state)
 		return
 	end
 
-	combinator:find_assembler()
-	combinator:find_chest()
+	combinator:find_assembler() -- latch to assembler
+	combinator:find_chest() -- latch to chest
 
 	-- Other combinators can use the module chest as overflow output, so let them know it's there
 	_M.update_chests(entity.surface, combinator.module_chest)
@@ -103,6 +131,7 @@ end
 
 function _M.on_module_chest_cancel_decon(entity)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
+	if not combinator then return end -- probably need to hack this too
 	combinator.enabled = true
 	combinator:update()
 end
@@ -168,6 +197,10 @@ function _M.mine_module_chest(unit_number, player_index)
 	end
 end
 
+---Method which triggers a scan around the entity for combinators, which then tries to latch the combinators to an assembler
+---@param surface LuaSurface Surface where the assembler entity is located
+---@param assembler LuaEntity Assembler entity
+---@param is_destroyed? boolean Whether this method is called due to the assembler entity being destroyed
 function _M.update_assemblers(surface, assembler, is_destroyed)
 	local combinators = surface.find_entities_filtered {
 		area = util.area(assembler.prototype.selection_box):expand(config.ASSEMBLER_SEARCH_DISTANCE) + assembler.position,
@@ -211,6 +244,8 @@ function params:clear()
 	for i = 1, #self.data do self.data[i] = nil end
 end
 
+---Method to update CC state
+---@param forced boolean Forced update clears control_behavior signals.
 function _M:update(forced)
 	if forced then
 		params:clear()

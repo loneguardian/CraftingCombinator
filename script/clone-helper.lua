@@ -1,15 +1,11 @@
 local config = require "config"
 local util = require "script.util"
+local signals = require "script.signals"
 local table_size = table_size
 
 -- Clone placeholder - key: old main uid, value: new partial state
 -- Key should be released once the state construction is deemed complete
-
----@alias uid integer old main uid
-
----@class partial_state table new partial state being constructed
----@field last_update integer The tick when the partial_state was last updated
-
+---@alias partial_state table
 ---@type {[uid]: partial_state}
 local clone_ph
 local on_load = function()
@@ -17,7 +13,7 @@ local on_load = function()
 end
 
 ---Called everytime after the state for an entity part is constructed: on_main_cloned() on_part_cloned()
----@param uid integer uid for old main entity
+---@param uid uid for old main entity
 local verify_partial_state = function(uid)
     local new_entity = clone_ph[uid].entity
     -- check if everything is complete:
@@ -123,16 +119,18 @@ local on_main_cloned = function(event)
         for i=1,#connected_entities do
             if connected_entities[i].name == config.SIGNAL_CACHE_NAME then
                 local cb = connected_entities[i].get_or_create_control_behavior()
-                if cb.circuit_condition.condition.comparator == "≤" then
-                    cache.__cache_entities.highest = connected_entities[i]
-                    cache.highest.__cb = cb
-                elseif cb.circuit_condition.condition.comparator == "≠" then
-                    cache.__cache_entities.highest_present = connected_entities[i]
-                    cache.highest_present.__cb = cb
+                local lamp_type
+                if cb.circuit_condition.condition.first_signal.name == signals.EVERYTHING.name then
+                    lamp_type = "highest"
                 elseif cb.circuit_condition.condition.comparator == "=" then
-                    cache.__cache_entities.highest_count = connected_entities[i]
-                    cache.highest_count.__cb = cb
+                    lamp_type = "highest_count"
+                elseif cb.circuit_condition.condition.comparator == "≠" then
+                    lamp_type = "highest_present"
+                elseif cb.circuit_condition.condition.comparator == ">" then
+                    lamp_type = "signal_present"
                 end
+                cache.__cache_entities[lamp_type] = connected_entities[i]
+                cache[lamp_type].__cb = cb
             end
         end
         global.signals.cache[new_main_uid] = cache
