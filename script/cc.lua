@@ -158,7 +158,6 @@ function _M.destroy(entity)
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
 
-	global.main_uid_by_part_uid[global.cc.data[unit_number].module_chest.unit_number] = nil
 	signals.cache.drop(unit_number)
 
 	global.cc.data[unit_number] = nil

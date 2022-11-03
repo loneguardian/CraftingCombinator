@@ -125,7 +125,8 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 
 	if entity_name == config.CC_NAME then
 		local uid = entity.unit_number
-		local combinator = global.cc.data[uid]
+		local module_chest = global.cc.data[uid].module_chest
+		local module_chest_uid = module_chest.unit_number
 		if event_name == defines.events.on_player_mined_entity then
 			-- Need to mine module chest first, success == true
 			if not cc_control.mine_module_chest(uid, event.player_index) then
@@ -134,31 +135,53 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 				return
 			end
 		end
-		if event_name == defines.events.on_entity_died or event_name == defines.events.script_raised_destroy then
-			cc_control.update_chests(entity_surface, combinator.module_chest, true)
-			combinator.module_chest.destroy()
+		if event_name == defines.events.on_entity_died
+		or event_name == defines.events.script_raised_destroy then
+			cc_control.update_chests(entity_surface, module_chest, true)
+			module_chest.destroy()
 		end
 		if event_name ~= defines.events.on_entity_died then -- need state data until post_entity_died
 			cc_control.destroy(entity)
 		end
+		global.main_uid_by_part_uid[module_chest_uid] = nil
 	elseif entity_name == config.MODULE_CHEST_NAME then
 		local uid = entity.unit_number
 		if event_name == defines.events.on_player_mined_entity then
 			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
 			-- Remove one cc from buffer because cc is the mine product
 			event.buffer.remove({name=config.CC_NAME, count=1})
-		elseif event_name == defines.events.on_robot_mined_entity or event_name == defines.events.script_raised_destroy then
+		elseif event_name == defines.events.on_robot_mined_entity
+		or event_name == defines.events.script_raised_destroy then
 			local cc_entity = global.cc.data[global.main_uid_by_part_uid[uid]].entity
 			if cc_entity and cc_entity.valid then
-				cc_control.destroy(entity)
+				cc_control.destroy(cc_entity.unit_number)
 				cc_entity.destroy()
 			end
 		end
 		global.main_uid_by_part_uid[uid] = nil
 	elseif entity_name == config.RC_NAME then
+		local output_proxy = global.rc.data[entity.unit_number].output_proxy
+		local output_proxy_uid = output_proxy.unit_number
+		if event_name == defines.events.on_entity_died
+		or event_name == defines.events.script_raised_destroy
+		or event_name == defines.events.on_robot_mined_entity
+		or event_name == defines.events.on_player_mined_entity then			
+			output_proxy.destroy()
+		end
 		if event_name ~= defines.events.on_entity_died then -- need state data until post_entity_died
 			rc_control.destroy(entity)
 		end
+		global.main_uid_by_part_uid[output_proxy_uid] = nil
+	elseif entity_name == config.RC_PROXY_NAME then
+		local uid = entity.unit_number
+		if event_name == defines.events.script_raised_destroy then
+			local rc_entity = global.rc.data[global.main_uid_by_part_uid[uid]].entity
+			rc_control.destroy(rc_entity.unit_number)
+			rc_entity.destroy()
+		end
+		global.main_uid_by_part_uid[uid] = nil
+	elseif entity_name == config.SIGNAL_CACHE_NAME then
+		global.main_uid_by_part_uid[entity.unit_number] = nil
 	else
 		if entity_type == 'assembling-machine' then
 			cc_control.update_assemblers(entity_surface, entity, true)
@@ -218,12 +241,14 @@ end)
 -- filter for built and destroyed events
 local filter_built_destroyed = {}
 
--- filter: cc or rc
+-- filter: cc or rc (main)
 table.insert(filter_built_destroyed, {filter = "name", name = config.CC_NAME})
 table.insert(filter_built_destroyed, {filter = "name", name = config.RC_NAME})
 
--- filter: module-chest
+-- filter: part
 table.insert(filter_built_destroyed, {filter = "name", name = config.MODULE_CHEST_NAME})
+table.insert(filter_built_destroyed, {filter = "name", name = config.RC_PROXY_NAME})
+table.insert(filter_built_destroyed, {filter = "name", name = config.SIGNAL_CACHE_NAME})
 
 -- filter: assembling-machine
 table.insert(filter_built_destroyed, {filter = "type", type = 'assembling-machine'})
@@ -233,16 +258,12 @@ for container, _ in pairs(util.CONTAINER_TYPES) do
 	table.insert(filter_built_destroyed, {filter = "type", type = container})
 end
 
--- filter for clone
-local filter_cloned = util.deepcopy(filter_built_destroyed)
-table.insert(filter_cloned, {filter = "name", name = config.RC_PROXY_NAME})
-
 -- entity built events
 script.on_event(defines.events.on_built_entity, on_built, filter_built_destroyed)
 script.on_event(defines.events.on_robot_built_entity, on_built, filter_built_destroyed)
 script.on_event(defines.events.script_raised_built, on_built, filter_built_destroyed)
 script.on_event(defines.events.script_raised_revive, on_built, filter_built_destroyed)
-script.on_event(defines.events.on_entity_cloned, on_cloned, filter_cloned)
+script.on_event(defines.events.on_entity_cloned, on_cloned, filter_built_destroyed)
 
 -- entity destroyed events
 script.on_event(defines.events.on_entity_died, on_destroyed, filter_built_destroyed)
