@@ -59,7 +59,7 @@ end
 ---@param lamp LuaEntity
 ---@return boolean? true if migrate successful
 function _M.migrate_lamp(lamp)
-	-- check red connection for RC or CC entity, if no connection then destroy
+	-- check red connection for RC or CC entity, if no connection then return
 	local connected_entities = lamp.circuit_connected_entities.red
 	local combinator_entity, circuit_id
 	for i = 1, #connected_entities do
@@ -95,6 +95,8 @@ function _M.migrate_lamp(lamp)
 	
 	cache.__cache_entities[lamp_type] = lamp
 	cache[lamp_type] = { __cb = cb }
+
+	-- TODO: guess value and valid fields?
 
 	return true
 end

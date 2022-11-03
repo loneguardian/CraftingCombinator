@@ -1,6 +1,5 @@
 ---@alias unit_number integer Unique ID for entity
----@alias uid unit_number
-
+---@alias uid unit_number Unique ID for entity
 
 ---@class CC_Combinator A CC state
 ---@field entityUID uid Combinator entity's uid
@@ -54,6 +53,8 @@ end
 
 function _M.init_global()
 	global.cc = global.cc or {}
+
+	---@type {[unit_number]: CC_Combinator}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = {}

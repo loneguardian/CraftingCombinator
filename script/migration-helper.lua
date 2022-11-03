@@ -69,7 +69,10 @@ local migrate_by_entity_scan = function(migrated_uids)
     end
 
     -- main list for trying to pair main to part
-    local main_list = {
+    ---@class main_maps
+    ---@field main_control table cc or rc control module
+    ---@field main_data table global cc or rc data
+    local main_maps = {
         cc = {
             mains = entity_by_uid.cc,
             parts = entity_by_uid.module_chest,
@@ -90,24 +93,23 @@ local migrate_by_entity_scan = function(migrated_uids)
         }
     }
 
-    for i, _ in pairs(main_list) do
-        local mains = main_list[i].mains -- entity_by_uid.cc/rc
-        for uid, entity in pairs(mains) do
-            local part_name = main_list[i].part_name -- entity name
-            local part_key = main_list[i].part_key -- key for migrated state
+    for main_type, map in pairs(main_maps) do
+        for uid, entity in pairs(map.mains) do
+            local part_name = map.part_name -- entity name
+            local part_key = map.part_key -- key for migrated_state
             local part_entity = entity.surface.find_entity(part_name, entity.position)
             local migrated_state
             if part_entity then
                 migrated_state = { [part_key] = part_entity }
-                main_list[i].parts[part_entity.unit_number] = nil
+                map.parts[part_entity.unit_number] = nil
             end
-            main_list[i].main_control.create(entity, nil, migrated_state) -- create method for rc/cc state
+            map.main_control.create(entity, nil, migrated_state) -- create method for rc/cc state
 
-            local stat_key = main_list[i].stat_key
+            local stat_key = map.stat_key
             count[stat_key] = count[stat_key] + 1 -- stat: rc/cc data created
 
-            local combinator = main_list[i].main_data[uid] -- global cc/rc data
-            if i == 1 then -- cc state
+            local combinator = map.main_data[uid] -- global cc/rc data
+            if main_type == "cc" then
                 combinator:find_assembler()
                 combinator:find_chest()
             end
@@ -115,12 +117,11 @@ local migrate_by_entity_scan = function(migrated_uids)
     end
 
     -- redundant part list - for destroy()
-    local part_list = { {entity_by_uid.module_chest, "module_chest"}, {entity_by_uid.output_proxy, "output_proxy"} }
-    for i = 1, #part_list do
-        local stat_key = part_list[i][2]
-        for _, entity in pairs(part_list[i][1]) do
-            if i == 1 then -- module-chest
-                cc_control.update_chests(entity.surface, entity)
+    for main_type, map in pairs(main_maps) do
+        local stat_key = map.stat_key
+        for _, entity in pairs(map.parts) do
+            if main_type == "cc" then -- module-chest
+                map.main_control.update_chests(entity.surface, entity)
             end
             entity.destroy()
             count.destroyed[stat_key] = count.destroyed[stat_key] + 1
@@ -133,20 +134,20 @@ local migrate_by_entity_scan = function(migrated_uids)
         if signals.migrate_lamp(lamp) then
             entity_by_uid.signal_cache_lamp[uid] = nil
             count.signal_cache_lamp_restored = count.signal_cache_lamp_restored + 1
+        else
+            -- destroy redundant lamps
+            lamp.destroy()
+            count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
         end
     end
+    
 
-    -- destroy redundant lamps
-    for _, entity in pairs(entity_by_uid.signal_cache_lamp) do
-        entity.destroy()
-        count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
-    end
-
-    -- update combinators after signal cache migration so that no new signal lamps are created
-    for i, _ in pairs(main_list) do
-        local mains = main_list[i].mains
+    -- update combinators after signal cache migration
+    -- update will invoke get_recipe -> signal cache -> new signal lamps are created if no cache
+    for _, map in pairs(main_maps) do
+        local mains = map.mains
         for uid, _ in pairs(mains) do
-            local combinator = main_list[i].main_data[uid]
+            local combinator = map.main_data[uid]
             combinator:update(true)
         end
     end
@@ -216,7 +217,11 @@ local migrate_by_remote_data = function()
     -- signal cache data
     for uid, cache_state in pairs(migrated_state.signals.cache) do
         for _, entity in pairs(cache_state.__cache_entities) do
-            migrated_uids[entity.unit_number] = true
+            if entity.valid then
+                migrated_uids[entity.unit_number] = true
+            else
+                count.invalid_signal_cache_lamp = count.invalid_signal_cache_lamp + 1
+            end
         end
         signals.migrate(uid, cache_state)
         count.signal_cache_state_migrated = count.signal_cache_state_migrated + 1
