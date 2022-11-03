@@ -1,5 +1,24 @@
 local config = require 'config'
 
+local get_all_cc_entities = function ()
+    local entities = {}
+    for _, surface in pairs(game.surfaces) do
+        local surface_entities = surface.find_entities_filtered {
+            name = {
+                config.CC_NAME,
+                config.MODULE_CHEST_NAME,
+                config.RC_NAME,
+                config.RC_PROXY_NAME,
+                config.SIGNAL_CACHE_NAME
+            }
+        }
+        for i = 1, #surface_entities do
+            entities[#entities + i] = surface_entities[i]
+        end
+    end
+    return entities
+end
+
 local check_orphaned_combinator = function()
     local cc_entities = {}
     local rc_entities = {}
@@ -96,7 +115,7 @@ local h = {
     check_orphaned_combinator = check_orphaned_combinator,
     check_uid = check_uid,
 
-    cleanup_delayed_bp_state = cleanup_delayed_bp_state
+    cleanup_delayed_bp_state = cleanup_delayed_bp_state,
+    get_all_cc_entities = get_all_cc_entities
 }
-
 return h
