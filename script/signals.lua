@@ -61,7 +61,7 @@ local cache_mt = {
 			__cb = entity.get_or_create_control_behavior(),
 		}
 
-		global.main_uid_by_part_uid[entity.unit_number] = key
+		global.main_uid_by_part_uid[entity.unit_number] = self.__entity.unit_number
 		
 		return self[key]
 	end,
@@ -165,8 +165,10 @@ function _M.cache.drop(unit_number)
 	local cache = global.signals.cache[unit_number]
 	if cache then
 		for _, e in pairs(cache.__cache_entities) do
-			global.main_uid_by_part_uid[e.unit_number] = nil
-			e.destroy();
+			if e.valid then
+				global.main_uid_by_part_uid[e.unit_number] = nil
+				e.destroy();
+			end
 		end
 		global.signals.cache[unit_number] = nil
 	end

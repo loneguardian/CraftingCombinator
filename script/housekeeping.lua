@@ -115,6 +115,7 @@ local function cleanup()
     }
 
     -- global data cleanup
+    log({"", "Old main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
     global.main_uid_by_part_uid = {} -- reset main_uid_by_part_uid
     for entity_name, map in pairs(proc_data) do
         if not map.check_global then goto next_proc end
@@ -157,9 +158,9 @@ local function cleanup()
                              if lamp_cb and lamp_entity and lamp_entity.valid then
                                 global.main_uid_by_part_uid[lamp_entity.unit_number] = uid
                              else
-                                 state[lamp_type] = nil
-                                 state.__cache_entities[lamp_type] = nil
-                                 count.invalid[map.stat_key].lamp = count.invalid[map.stat_key].lamp + 1
+                                state[lamp_type] = nil
+                                state.__cache_entities[lamp_type] = nil
+                                count.invalid[map.stat_key].lamp = count.invalid[map.stat_key].lamp + 1
                              end
                          end
                      end
@@ -171,6 +172,8 @@ local function cleanup()
         end
         ::next_proc::
     end
+
+    log({"", "New main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
 
     local all_cc_entities = get_all_cc_entities()
     -- loop through all_cc_entities

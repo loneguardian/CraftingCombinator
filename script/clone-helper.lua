@@ -118,7 +118,8 @@ local on_main_cloned = function(event)
         local connected_entities = new_entity.circuit_connected_entities.red
         for i=1,#connected_entities do
             if connected_entities[i].name == config.SIGNAL_CACHE_NAME then
-                local cb = connected_entities[i].get_or_create_control_behavior()
+                local lamp = connected_entities[i]
+                local cb = lamp.get_or_create_control_behavior()
                 local lamp_type
                 if cb.circuit_condition.condition.first_signal.name == signals.EVERYTHING.name then
                     lamp_type = "highest"
@@ -129,8 +130,9 @@ local on_main_cloned = function(event)
                 elseif cb.circuit_condition.condition.comparator == ">" then
                     lamp_type = "signal_present"
                 end
-                cache.__cache_entities[lamp_type] = connected_entities[i]
+                cache.__cache_entities[lamp_type] = lamp
                 cache[lamp_type].__cb = cb
+                global.main_uid_by_part_uid[lamp.unit_number] = new_main_uid
             end
         end
         global.signals.cache[new_main_uid] = cache
@@ -150,7 +152,8 @@ local on_part_cloned = function(event)
     if not (new_entity and new_entity.valid) then return end
 
     local entity_name = new_entity.name
-    local old_main_uid = global.main_uid_by_part_uid[event.source.unit_number]
+    local old_uid = event.source.unit_number
+    local old_main_uid = global.main_uid_by_part_uid[old_uid]
     local is_new_partial_state = false
     -- check for partially constructed state (existing key)
     if not clone_ph[old_main_uid] then
