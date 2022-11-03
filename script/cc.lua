@@ -1,22 +1,35 @@
----@alias unit_number integer Unique ID for entity
+---@alias unit_number uint Unique ID for entity
 ---@alias uid unit_number Unique ID for entity
 
----@class CC_Combinator A CC state
+---@class AssemblerInventories
+---@field input LuaInventory?
+---@field output LuaInventory?
+
+---@class CcInventories
+---@field module_chest LuaInventory?
+---@field chest LuaInventory?
+---@field assembler AssemblerInventories
+
+---@class CcState
 ---@field entityUID uid Combinator entity's uid
 ---@field entity LuaEntity Combinator entity
----@field control_behavior LuaControlBehavior Combinator's control behavior
----@field assembler LuaEntity Assembler entity associated to this CC
+---@field control_behavior LuaControlBehavior? Combinator's control behavior
 ---@field module_chest LuaEntity Module chest entity associated to this CC
+---@field assembler LuaEntity Assembler entity associated to this CC
+---@field settings CcSettings CC settings table
+---@field inventories CcInventories
+---@field items_to_ignore table ???
+---@field last_flying_text_tick integer
+---@field enabled boolean
+---@field last_recipe LuaRecipe|boolean|nil
+---@field last_assembler_recipe LuaRecipe|boolean|nil
+---@field read_mode_cb boolean
+---@field sticky boolean
+---@field allow_sticky boolean
+---@field unstick_at_tick integer
 ---@field update function Method to update CC state
-
----@class CC_Inventories
----@field module_chest LuaInventory
----@field chest LuaInventory
----@field assembler Assembler_Inventories
-
----@class Assembler_Inventories
----@field input LuaInventory LEEE INPUT!
----@field output LuaInventory
+---@field find_assembler function
+---@field find_chest function
 
 
 local util = require 'script.util'
@@ -54,7 +67,7 @@ end
 function _M.init_global()
 	global.cc = global.cc or {}
 
-	---@type {[unit_number]: CC_Combinator}
+	---@type {[uid]: CcState}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = {}
@@ -71,7 +84,7 @@ end
 ---@param tags Tags
 ---@param migrated_state? table
 function _M.create(entity, tags, migrated_state)
-	---@type CC_Combinator
+	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -83,7 +96,6 @@ function _M.create(entity, tags, migrated_state)
 			create_build_effect_smoke = false,
 		},
 		settings = util.merge_combinator_settings(config.CC_DEFAULT_SETTINGS, tags, migrated_state),
-		---@type CC_Inventories
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -141,10 +153,12 @@ end
 ---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
 	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
+	if not unit_number then return end
 
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
 
+	global.main_uid_by_part_uid[global.cc.data[unit_number].module_chest.unit_number] = nil
 	signals.cache.drop(unit_number)
 
 	global.cc.data[unit_number] = nil

@@ -1,3 +1,16 @@
+---@class CcSettings
+---@field chest_position integer
+---@field mode string
+---@field wait_for_output_to_clear boolean
+---@field discard_items boolean
+---@field discard_fluids boolean
+---@field empty_inserters boolean
+---@field read_recipe boolean
+---@field read_speed boolean
+---@field read_machine_status boolean
+---@field craft_until_zero boolean
+---@field craft_n_before_switch integer
+
 return {
 	MOD_PATH = '__crafting_combinator_xeraph__',
 	CC_NAME = 'crafting_combinator:crafting-combinator',

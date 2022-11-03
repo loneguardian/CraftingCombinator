@@ -1,3 +1,30 @@
+---@class CacheEntities
+---@field highest LuaEntity
+---@field highest_present LuaEntity
+---@field highest_count LuaEntity
+---@field signal_present LuaEntity
+
+---@class CacheCb
+---@field _cb LuaControlBehavior
+---@field valid boolean
+---@field value CacheValue
+
+---@class CacheValue
+---@field signal CacheSignal
+
+---@class CacheSignal
+---@field type string
+---@field name string
+
+---@class SignalsCacheState
+---@field __entity LuaEntity
+---@field __circuit_id defines.circuit_connector_id
+---@field __cache_entities CacheEntities
+---@field highest CacheCb
+---@field highest_present CacheCb
+---@field highest_count CacheCb
+---@field signal_present CacheCb
+
 local config = require 'config'
 
 
@@ -33,6 +60,8 @@ local cache_mt = {
 		self[key] = {
 			__cb = entity.get_or_create_control_behavior(),
 		}
+
+		global.main_uid_by_part_uid[entity.unit_number] = key
 		
 		return self[key]
 	end,
@@ -109,6 +138,7 @@ _M.cache = {}
 ---@param entityUID uid
 ---@return table cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
+	---@type SignalsCacheState
 	local cache = global.signals.cache[entityUID]
 	if not cache then
 		cache = setmetatable({
@@ -131,9 +161,13 @@ function _M.cache.reset(entity, name) -- not used? to reset already existing lam
 end
 
 function _M.cache.drop(unit_number)
+	---@type SignalsCacheState
 	local cache = global.signals.cache[unit_number]
 	if cache then
-		for key, e in pairs(cache.__cache_entities) do e.destroy(); end
+		for _, e in pairs(cache.__cache_entities) do
+			global.main_uid_by_part_uid[e.unit_number] = nil
+			e.destroy();
+		end
 		global.signals.cache[unit_number] = nil
 	end
 end
