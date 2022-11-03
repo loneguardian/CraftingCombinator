@@ -43,7 +43,8 @@ local c = {
 		read_speed = false,
 		read_machine_status = false,
 		craft_until_zero = false,
-		craft_n_before_switch = 1
+		craft_n_before_switch = 1,
+		input_buffer_size = 2
 	},
 	RC_DEFAULT_SETTINGS = {
 		mode = 'ing',
@@ -88,5 +89,14 @@ local c = {
 		item_production_overload = 'signal-yellow',
 	},
 }
+
+-- Mod settings events
+function c.on_mod_settings_changed(event)
+	if event.setting == c.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME then
+		c.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[c.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
+	elseif event.setting == c.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME then
+		c.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[c.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value
+	end
+end
 
 return c

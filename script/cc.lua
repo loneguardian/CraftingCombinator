@@ -62,6 +62,7 @@ for name, signal in pairs(config.MACHINE_STATUS_SIGNALS) do
 	end
 end
 
+
 -- General housekeeping
 
 function _M.init_global()
@@ -301,6 +302,7 @@ function _M:open(player_index)
 		},
 		gui.section {
 			name = 'misc',
+			gui.number_picker('input-buffer-size', self.settings.input_buffer_size),
 			gui.checkbox('wait-for-output-to-clear', self.settings.wait_for_output_to_clear, { tooltip = true }),
 			gui.checkbox('discard-items', self.settings.discard_items),
 			gui.checkbox('discard-fluids', self.settings.discard_fluids),
@@ -344,6 +346,8 @@ function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
 		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
+	elseif name == 'misc:input-buffer-size:value' then
+		self.settings.input_buffer_size = tonumber(text) or self.settings.input_buffer_size
 	end
 end
 
@@ -359,6 +363,7 @@ function _M:update_disabled_checkboxes(root)
 end
 
 function _M:update_disabled_textboxes(root)
+	self:disable_textbox(root, 'misc:input-buffer-size', 'w')
 	self:disable_textbox(root, 'sticky:craft-n-before-switch', 'w')
 end
 
@@ -584,28 +589,45 @@ function _M:insert_items(recipe)
 	local ingredients = recipe.ingredients
 	for i = 1, #ingredients do
 		if ingredients[i].type == "item" then
-			local amount = ingredients[i].amount * 2
 			local ingredient_name = ingredients[i].name
-			while amount > 0 do
+			local buffer_size = self.settings.input_buffer_size
+			if buffer_size > 0 then
+				local amount = ingredients[i].amount * buffer_size
 				local stack = source.find_item_stack(ingredient_name)
-				-- no itemstack found - break loop
-				if not stack then break end
+				if not stack then return end
+				local found
+				local inserted
+				while stack do
+					found = stack.count
+					-- if the item stack is larger than desired amount, reduce stack to desired amount
+					if found > amount then stack.count = amount end
 
-				local found = stack.count
-				-- if the item stack is larger than desired amount, reduce stack to desired amount
-				if found > amount then stack.count = amount end
+					-- attempt to insert item stack
+					inserted = target.insert(stack)
 
-				-- attempt to insert item stack
-				local inserted = target.insert(stack)
+					-- items cannot be inserted - different durability? health? - break loop
+					if inserted == 0 then break end
 
-				-- update final stack count
-				stack.count = found - inserted
+					-- update final stack count
+					stack.count = found - inserted
 
-				-- items cannot be inserted - different durability? health? - break loop
-				if inserted == 0 then break end
-
-				-- update desired amount
-				amount = amount - inserted
+					-- update desired amount
+					amount = amount - inserted
+					if amount <= 0 then break end
+					stack = source.find_item_stack(ingredient_name)
+				end
+			elseif buffer_size < 0 then
+				local stack = source.find_item_stack(ingredient_name)
+				if not stack then return end
+				local found
+				local inserted
+				while stack do
+					found = stack.count
+					inserted = target.insert(stack)
+					if inserted == 0 then break end
+					stack.count = found - inserted
+					stack = source.find_item_stack(ingredient_name)
+				end
 			end
 		end
 	end
