@@ -90,7 +90,7 @@ data:extend {
 		collision_mask = {},
 		collision_box = cc.collision_box,
 		selection_box = cc.selection_box,
-		inventory_size = config.MODULE_CHEST_SIZE,
+		inventory_size = settings.startup[config.MODULE_CHEST_SIZE_NAME].value,
 		picture = trans,
 		minable = {mining_time = 0.2, result = cc.name},
 		

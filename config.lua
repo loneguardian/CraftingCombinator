@@ -11,11 +11,14 @@
 ---@field craft_until_zero boolean
 ---@field craft_n_before_switch integer
 
-return {
+local c = {
 	MOD_PATH = '__crafting_combinator_xeraph__',
 	CC_NAME = 'crafting_combinator:crafting-combinator',
+	CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:craft-n-before-switch-default',
+	CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:input-buffer-on-set-recipe-default',
 	RC_NAME = 'crafting_combinator:recipe-combinator',
 	MODULE_CHEST_NAME = 'crafting_combinator:module-chest',
+	MODULE_CHEST_SIZE_NAME ='crafting_combinator:module-chest-size',
 	REFRESH_RATE_CC_NAME = 'crafting_combinator:refresh-rate-cc',
 	REFRESH_RATE_RC_NAME = 'crafting_combinator:refresh-rate-rc',
 	RC_PROXY_NAME = 'crafting_combinator:rc-proxy',
@@ -25,6 +28,9 @@ return {
 	GROUP_NAME = 'crafting_combinator:virtual-recipes',
 	RECIPE_SUBGROUP_PREFIX = 'crafting_combinator:virtual-recipe-subgroup:',
 	UNSORTED_RECIPE_SUBGROUP = 'crafting_combinator:virtual-recipe-subgroup:unsorted',
+
+	CC_CRAFT_N_BEFORE_SWITCH_DEFAULT = 1,
+	CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT = 2,
 	
 	CC_DEFAULT_SETTINGS = {
 		chest_position = 1, -- 1 = Behind, 2 = Left, 3 = Right
@@ -82,3 +88,5 @@ return {
 		item_production_overload = 'signal-yellow',
 	},
 }
+
+return c
