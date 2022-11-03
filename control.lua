@@ -9,6 +9,8 @@ local gui = require 'script.gui'
 local blueprint = require 'script.blueprint'
 local migration_helper = require 'script.migration-helper'
 local clone_helper = require 'script.clone-helper'
+local housekeeping = require 'script.housekeeping'
+commands.add_command("crafting_combinator_xeraph", nil, housekeeping.cc_command)
 
 local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
 local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
@@ -24,7 +26,6 @@ end
 
 local function on_load(forced)
 	if not forced and next(late_migrations.__migrations) ~= nil then return; end
-
 	cc_control.on_load()
 	rc_control.on_load()
 	signals.on_load()
