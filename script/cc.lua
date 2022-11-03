@@ -1,22 +1,35 @@
----@alias unit_number integer Unique ID for entity
+---@alias unit_number uint Unique ID for entity
 ---@alias uid unit_number Unique ID for entity
 
----@class CC_Combinator A CC state
+---@class AssemblerInventories
+---@field input LuaInventory?
+---@field output LuaInventory?
+
+---@class CcInventories
+---@field module_chest LuaInventory?
+---@field chest LuaInventory?
+---@field assembler AssemblerInventories
+
+---@class CcState
 ---@field entityUID uid Combinator entity's uid
 ---@field entity LuaEntity Combinator entity
----@field control_behavior LuaControlBehavior Combinator's control behavior
----@field assembler LuaEntity Assembler entity associated to this CC
+---@field control_behavior LuaControlBehavior? Combinator's control behavior
 ---@field module_chest LuaEntity Module chest entity associated to this CC
+---@field assembler LuaEntity Assembler entity associated to this CC
+---@field settings CcSettings CC settings table
+---@field inventories CcInventories
+---@field items_to_ignore table ???
+---@field last_flying_text_tick integer
+---@field enabled boolean
+---@field last_recipe LuaRecipe|boolean|nil
+---@field last_assembler_recipe LuaRecipe|boolean|nil
+---@field read_mode_cb boolean
+---@field sticky boolean
+---@field allow_sticky boolean
+---@field unstick_at_tick integer
 ---@field update function Method to update CC state
-
----@class CC_Inventories
----@field module_chest LuaInventory
----@field chest LuaInventory
----@field assembler Assembler_Inventories
-
----@class Assembler_Inventories
----@field input LuaInventory LEEE INPUT!
----@field output LuaInventory
+---@field find_assembler function
+---@field find_chest function
 
 
 local util = require 'script.util'
@@ -49,12 +62,13 @@ for name, signal in pairs(config.MACHINE_STATUS_SIGNALS) do
 	end
 end
 
+
 -- General housekeeping
 
 function _M.init_global()
 	global.cc = global.cc or {}
 
-	---@type {[unit_number]: CC_Combinator}
+	---@type {[uid]: CcState}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = {}
@@ -71,7 +85,7 @@ end
 ---@param tags Tags
 ---@param migrated_state? table
 function _M.create(entity, tags, migrated_state)
-	---@type CC_Combinator
+	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -83,7 +97,6 @@ function _M.create(entity, tags, migrated_state)
 			create_build_effect_smoke = false,
 		},
 		settings = util.merge_combinator_settings(config.CC_DEFAULT_SETTINGS, tags, migrated_state),
-		---@type CC_Inventories
 		inventories = {},
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
@@ -141,6 +154,7 @@ end
 ---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
 	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
+	if not unit_number then return end
 
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
@@ -288,6 +302,7 @@ function _M:open(player_index)
 		},
 		gui.section {
 			name = 'misc',
+			gui.number_picker('input-buffer-size', self.settings.input_buffer_size),
 			gui.checkbox('wait-for-output-to-clear', self.settings.wait_for_output_to_clear, { tooltip = true }),
 			gui.checkbox('discard-items', self.settings.discard_items),
 			gui.checkbox('discard-fluids', self.settings.discard_fluids),
@@ -331,6 +346,8 @@ function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
 		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
+	elseif name == 'misc:input-buffer-size:value' then
+		self.settings.input_buffer_size = tonumber(text) or self.settings.input_buffer_size
 	end
 end
 
@@ -346,6 +363,7 @@ function _M:update_disabled_checkboxes(root)
 end
 
 function _M:update_disabled_textboxes(root)
+	self:disable_textbox(root, 'misc:input-buffer-size', 'w')
 	self:disable_textbox(root, 'sticky:craft-n-before-switch', 'w')
 end
 
@@ -571,28 +589,45 @@ function _M:insert_items(recipe)
 	local ingredients = recipe.ingredients
 	for i = 1, #ingredients do
 		if ingredients[i].type == "item" then
-			local amount = ingredients[i].amount * 2
 			local ingredient_name = ingredients[i].name
-			while amount > 0 do
+			local buffer_size = self.settings.input_buffer_size
+			if buffer_size > 0 then
+				local amount = ingredients[i].amount * buffer_size
 				local stack = source.find_item_stack(ingredient_name)
-				-- no itemstack found - break loop
-				if not stack then break end
+				if not stack then return end
+				local found
+				local inserted
+				while stack do
+					found = stack.count
+					-- if the item stack is larger than desired amount, reduce stack to desired amount
+					if found > amount then stack.count = amount end
 
-				local found = stack.count
-				-- if the item stack is larger than desired amount, reduce stack to desired amount
-				if found > amount then stack.count = amount end
+					-- attempt to insert item stack
+					inserted = target.insert(stack)
 
-				-- attempt to insert item stack
-				local inserted = target.insert(stack)
+					-- items cannot be inserted - different durability? health? - break loop
+					if inserted == 0 then break end
 
-				-- update final stack count
-				stack.count = found - inserted
+					-- update final stack count
+					stack.count = found - inserted
 
-				-- items cannot be inserted - different durability? health? - break loop
-				if inserted == 0 then break end
-
-				-- update desired amount
-				amount = amount - inserted
+					-- update desired amount
+					amount = amount - inserted
+					if amount <= 0 then break end
+					stack = source.find_item_stack(ingredient_name)
+				end
+			elseif buffer_size < 0 then
+				local stack = source.find_item_stack(ingredient_name)
+				if not stack then return end
+				local found
+				local inserted
+				while stack do
+					found = stack.count
+					inserted = target.insert(stack)
+					if inserted == 0 then break end
+					stack.count = found - inserted
+					stack = source.find_item_stack(ingredient_name)
+				end
 			end
 		end
 	end

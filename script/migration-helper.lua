@@ -2,29 +2,15 @@ local config = require 'config'
 local cc_control = require 'script.cc'
 local rc_control = require 'script.rc'
 local signals = require 'script.signals'
+local housekeeping = require 'script.housekeeping'
 
 ---Second step of migration after remote data migration is complete.
 ---Performs entity scan and tries to build state data based on their positions or connections.
 ---@param migrated_uids table Table of uids for entities migrated using remote data
+---fun(PARAM: table): nil
 local migrate_by_entity_scan = function(migrated_uids)
     -- perform entity scan and get list of cc, module-chests, rc, output-proxies, signal-cache-lamps
-    local entities = {}
-    for _, surface in pairs(game.surfaces) do
-        local surface_entities = surface.find_entities_filtered {
-            name = {
-                config.CC_NAME,
-                config.MODULE_CHEST_NAME,
-                config.RC_NAME,
-                config.RC_PROXY_NAME,
-                config.SIGNAL_CACHE_NAME
-            }
-        }
-        local total = #entities
-        for i = 1, #surface_entities do
-            entities[total + i] = surface_entities[i]
-        end
-    end
-
+    local all_cc_entities = housekeeping.get_all_cc_entities()
     local count = {
         orphaned = {
             cc = 0,
@@ -46,7 +32,7 @@ local migrate_by_entity_scan = function(migrated_uids)
     -- get list of orphans.
     local entity_by_uid = { cc = {}, module_chest = {}, rc = {}, output_proxy = {}, signal_cache_lamp = {} }
 
-    -- dictionary group by entityName
+    -- entity_name --> variables map
     local get_entity_table = {
         [config.CC_NAME] = { entity_by_uid.cc, "cc" },
         [config.MODULE_CHEST_NAME] = { entity_by_uid.module_chest, "module_chest" },
@@ -56,11 +42,11 @@ local migrate_by_entity_scan = function(migrated_uids)
     }
 
     -- sort them into dictionaries, filtering those that has migrated.
-    for i = 1, #entities do
-        local entity = entities[i]
+    for i = 1, #all_cc_entities do
+        local entity = all_cc_entities[i]
         local uid = entity.unit_number
         if not (migrated_uids and migrated_uids[uid]) then
-            local entity_by_uid = get_entity_table[entity.name][1]
+            local entity_by_uid = get_entity_table[entity.name][1] -- entity by uid table
             entity_by_uid[uid] = entity
 
             local stat_key = get_entity_table[entity.name][2]
@@ -68,7 +54,7 @@ local migrate_by_entity_scan = function(migrated_uids)
         end
     end
 
-    -- main list for trying to pair main to part
+    -- main_type -> procedure map for trying to pair main to part
     ---@class main_maps
     ---@field main_control table cc or rc control module
     ---@field main_data table global cc or rc data
