@@ -14,9 +14,9 @@ table.insert(cc.flags, 'not-deconstructable')
 
 for _, image in pairs(cc.sprites) do
 	local im = image.layers[1]
-	im.filename = MOD_PATH .. '/graphics/entities.png'
+	im.filename = MOD_PATH .. '/graphics/crafting-combinator.png'
 	im.y = 0
-	im.hr_version = nil
+	im.hr_version.filename = MOD_PATH .. '/graphics/hr-crafting-combinator.png'
 end
 
 local cc_item = table.deepcopy(data.raw['item']['constant-combinator'])
