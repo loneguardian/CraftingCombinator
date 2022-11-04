@@ -345,7 +345,10 @@ end
 function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
-		self.settings.craft_n_before_switch = tonumber(text) or self.settings.craft_n_before_switch
+		local value = tonumber(text)
+		if value and value >= 0 then
+			self.settings.craft_n_before_switch = value
+		end
 	elseif name == 'misc:input-buffer-size:value' then
 		self.settings.input_buffer_size = tonumber(text) or self.settings.input_buffer_size
 	end
