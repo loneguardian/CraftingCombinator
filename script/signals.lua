@@ -82,9 +82,10 @@ end
 ---@param uid uid  
 function _M.migrate(uid, cache_state)
 	global.signals.cache[uid] = setmetatable(cache_state, cache_mt)
+	_M.verify(uid, cache_state)
 end
 
----Method to migrate individual signal cache lamps into the game
+---Method to migrate individual signal cache lamp
 ---@param lamp LuaEntity
 ---@return boolean? true if migrate successful
 function _M.migrate_lamp(lamp)
@@ -95,9 +96,11 @@ function _M.migrate_lamp(lamp)
 		local entity = connected_entities[i]
 		if entity.name == config.CC_NAME then
 			combinator_entity = connected_entities[i]
+			break
 		elseif entity.name == config.RC_NAME then
 			combinator_entity = connected_entities[i]
 			circuit_id = defines.circuit_connector_id.combinator_input
+			break
 		end
 	end
 
@@ -121,13 +124,50 @@ function _M.migrate_lamp(lamp)
 	elseif cb.circuit_condition.condition.comparator == ">" then
 		lamp_type = "signal_present"
 	end
-	
-	cache.__cache_entities[lamp_type] = lamp
-	cache[lamp_type] = { __cb = cb }
 
+	-- check cache state for existing lamps
+	-- if present and valid then return false
+	local existing_lamp = cache.__cache_entities[lamp_type]
+	if rawget(cache, lamp_type) and existing_lamp and existing_lamp.valid then
+		return false
+	else
+		cache.__cache_entities[lamp_type] = lamp
+		cache[lamp_type] = { __cb = cb }
+		global.main_uid_by_part_uid[lamp.unit_number] = combinator_entity.unit_number
+		return true
+	end
 	-- TODO: guess value and valid fields?
+end
 
-	return true
+---@alias SignalsCacheState_Verify
+---|nil # signal cache state is valid
+---|1 # cache invalid
+---|2 # lamp invalid
+---@param state SignalsCacheState
+---@return SignalsCacheState_Verify
+function _M.verify(uid, state)
+	local combinator_entity = state.__entity
+	if combinator_entity and combinator_entity.valid then
+			-- check lamps and update main_uid_by_part_uid
+			local lamp_types = {"highest", "highest_count", "highest_present", "signal_present"}
+			for i= 1, #lamp_types do
+			local lamp_type = lamp_types[i]
+				if rawget(state, lamp_type) then
+					local lamp_cb = state[lamp_type].__cb
+					local lamp_entity = state.__cache_entities[lamp_type]
+					if lamp_cb and lamp_entity and lamp_entity.valid then
+						global.main_uid_by_part_uid[lamp_entity.unit_number] = uid
+					else
+						state[lamp_type] = nil
+						state.__cache_entities[lamp_type] = nil
+						return 2
+					end
+				end
+			end
+	else
+		global.signals.cache[uid] = nil
+		return 1
+	end
 end
 
 _M.cache = {}
