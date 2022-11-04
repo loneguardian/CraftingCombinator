@@ -130,6 +130,16 @@ local function cleanup()
                         if state.module_chest and state.module_chest.valid then
                             global.main_uid_by_part_uid[state.module_chest.unit_number] = uid
                         else
+                            -- try to find a module_chest at same position
+                            local module_chest = state.entity.surface.find_entity(config.MODULE_CHEST_NAME, state.entity.position)
+                            if module_chest then
+                                state.module_chest = module_chest
+                                state.inventories.module_chest = module_chest.get_inventory(defines.inventory.chest)
+                                cc_control.update_chests(module_chest.surface, module_chest)
+                                global.main_uid_by_part_uid[state.module_chest.unit_number] = uid
+                            else
+                                map.global_data[uid] = nil
+                            end
                             count.invalid[proc_data[config.MODULE_CHEST_NAME].stat_key] = count.invalid[proc_data[config.MODULE_CHEST_NAME].stat_key] + 1
                         end
                     elseif entity_name == config.RC_NAME then
@@ -137,6 +147,15 @@ local function cleanup()
                         if state.output_proxy and state.output_proxy.valid then
                             global.main_uid_by_part_uid[state.output_proxy.unit_number] = uid
                         else
+                            -- try to find a output_proxy at same position
+                            local output_proxy = state.entity.surface.find_entity(config.MODULE_CHEST_NAME, state.entity.position)
+                            if output_proxy then
+                                state.output_proxy = output_proxy
+                                state.control_behavior = state.output_proxy.get_or_create_control_behavior()
+                                global.main_uid_by_part_uid[state.output_proxy.unit_number] = uid
+                            else
+                                map.global_data[uid] = nil
+                            end
                             count.invalid[proc_data[config.RC_PROXY_NAME].stat_key] = count.invalid[proc_data[config.RC_PROXY_NAME].stat_key] + 1
                         end
                     end
@@ -215,6 +234,16 @@ local function cleanup()
     end
     if count.rc_data_created > 0 then
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " RC state(s) has been created with default settings."}})
+    end
+
+    -- regenerate global.cc/rc.ordered
+    global.cc.ordered = {}
+    for _, state in pairs(global.cc.data) do
+        table.insert(global.cc.ordered, state)
+    end
+    global.rc.ordered = {}
+    for _, state in pairs(global.rc.data) do
+        table.insert(global.rc.ordered, state)
     end
 
     game.print({"crafting_combinator.chat-message", {"", "Cleanup complete."}})
