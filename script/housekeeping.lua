@@ -59,13 +59,6 @@ local function cleanup()
                 lamp = 0
             },
         },
-        orphaned = {
-            cc = 0,
-            module_chest = 0,
-            rc = 0,
-            output_proxy = 0,
-            signal_cache_lamp = 0
-        },
         cc_data_created = 0,
         rc_data_created = 0,
         signal_cache_lamp_relinked = 0,
@@ -76,13 +69,11 @@ local function cleanup()
         }
     }
 
-    local orphan = {cc = {}, module_chest = {}, rc = {}, output_proxy = {}, signal_cache_lamp = {}} --using stat_key
-
     local proc_data = {
         [config.CC_NAME] = {
-            all_cc_entities_loop = true,
+            main = true,
             part_name = config.MODULE_CHEST_NAME,
-            orphan_table = orphan.cc,
+            part_key = "module_chest",
             check_global = true,
             global_data = global.cc.data,
             main_control = cc_control,
@@ -90,15 +81,14 @@ local function cleanup()
         },
         [config.MODULE_CHEST_NAME]= {
             part = true,
-            orphan_table = orphan.module_chest,
             check_global = false,
             global_data = global.cc.data,
             stat_key = "module_chest"
         },
         [config.RC_NAME] = {
-            all_cc_entities_loop = true,
+            main = true,
             part_name = config.RC_PROXY_NAME,
-            orphan_table = orphan.rc,
+            part_key = "output_proxy",
             check_global = true,
             global_data = global.rc.data,
             main_control = rc_control,
@@ -106,15 +96,12 @@ local function cleanup()
         },
         [config.RC_PROXY_NAME] = {
             part = true,
-            orphan_table = orphan.output_proxy,
             check_global = false,
             global_data = global.rc.data,
             stat_key = "output_proxy"
         },
         [config.SIGNAL_CACHE_NAME] = {
-            all_cc_entities_loop = true,
             part = true,
-            orphan_table = orphan.signal_cache_lamp,
             check_global = true,
             global_data = global.signals.cache,
             stat_key = "signals_cache"
@@ -184,41 +171,48 @@ local function cleanup()
         ::next_proc::
     end
 
-    -- loop through all_cc_entities for cc/rc/signal lamp
-    -- find orphaned cc/rc/signal lamp
     -- cc/rc: try to create global data
     -- signal lamp: try to link
     local all_cc_entities = get_all_cc_entities()
+
+    -- loop through for signal lamps - they should be linked before cc/rc:update is called
     for i = #all_cc_entities, 1, -1 do
         local entity = all_cc_entities[i]
-        local entity_name = entity.name
-        if not proc_data[entity_name].all_cc_entities_loop then goto next_entity end
-        local uid = entity.unit_number
-        if entity_name == config.SIGNAL_CACHE_NAME then
-            if global.main_uid_by_part_uid[uid] then goto not_orphan end
+        if entity.name == config.SIGNAL_CACHE_NAME then
+            if global.main_uid_by_part_uid[entity.unit_number] then goto not_orphan end
             if signals.migrate_lamp(entity) then
                 count.signal_cache_lamp_relinked = count.signal_cache_lamp_relinked + 1
             else
                 goto next_entity
             end
-        else -- cc/rc state
-            if not proc_data[entity_name].global_data[uid] then -- cc/rc state not found
-                local control = proc_data[entity_name].main_control
-                local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
-                local migrated_state
-                if part and part.valid then
-                    migrated_state = {[proc_data[entity_name].part_name] = part}
-                    global.main_uid_by_part_uid[part.unit_number] = uid
-                end
-                control.create(entity, nil, migrated_state)
-                if entity_name == config.CC_NAME then
-                    count.cc_data_created = count.cc_data_created + 1
-                elseif entity_name == config.RC_NAME then
-                    count.rc_data_created = count.rc_data_created + 1
-                end
-            end
         end
         ::not_orphan::
+        table.remove(all_cc_entities, i)
+        ::next_entity::
+    end
+
+    -- loop through for cc/rc
+    for i = #all_cc_entities, 1, -1 do
+        local entity = all_cc_entities[i]
+        local entity_name = entity.name
+        if not proc_data[entity_name].main then goto next_entity end
+        local uid = entity.unit_number
+        if not proc_data[entity_name].global_data[uid] then -- cc/rc state not found
+            local control = proc_data[entity_name].main_control
+            local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
+            local migrated_state
+            if part and part.valid then
+                migrated_state = {[proc_data[entity_name].part_key] = part}
+                global.main_uid_by_part_uid[part.unit_number] = uid
+            end
+            control.create(entity, nil, migrated_state)
+            if entity_name == config.CC_NAME then
+                count.cc_data_created = count.cc_data_created + 1
+            elseif entity_name == config.RC_NAME then
+                count.rc_data_created = count.rc_data_created + 1
+            end
+            proc_data[entity_name].global_data[uid]:update(true)
+        end
         table.remove(all_cc_entities, i)
         ::next_entity::
     end
@@ -232,7 +226,8 @@ local function cleanup()
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " RC state(s) has been created with default settings."}})
     end
 
-    -- remaining orphans -> destroy
+    -- remaining entities in the table
+    -- use main_uid_by_part_uid to determine orphans -> destroy
     for i = #all_cc_entities, 1, -1 do
         local entity = all_cc_entities[i]
         local entity_name = entity.name
@@ -246,10 +241,12 @@ local function cleanup()
                     local stat_key = proc_data[entity_name].stat_key
                     count.destroyed[stat_key] = count.destroyed[stat_key] + 1
                 end
+                goto next_entity
             end
-        else
-            game.print({"crafting_combinator.chat-message", {"", "Cleanup(): Remnant mains in all_cc_entities table, please inform mod author."}})
         end
+        ::remnant_found::
+        game.print({"crafting_combinator.chat-message", {"", "Cleanup(): Remnant ", entity_name , " in all_cc_entities table, please inform mod author."}})
+        ::next_entity::
     end
 
     -- regenerate global.cc/rc.ordered
