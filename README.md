@@ -1,4 +1,19 @@
-# Description #
+# Fork Notice #
+This is a fork to theRustyKnife's [Crafting Combinator mod v0.16.3](https://github.com/theRustyKnife/CraftingCombinator).
+
+# Migration #
+This fork is **not compatible** with the original mod. If you wish to migrate your current save to this fork you can do the following:
+1. Follow the [remote-data migration procedures](https://github.com/loneguardian/crafting_combinator_xeraph_migration) using the migration bridge mod.
+
+   OR
+
+2. Load this fork over your existing save. WARNING: All combinators will be migrated with default settings and data state.
+
+Upon migrating to this fork, you will notice the removal of `crafting_combinator:settings-entity (programmable-speaker)` and its related objects, this is to be expected.
+
+-------------
+
+# Mod Description #
 **A combinator that can set the recipe of an assembler (or other machine) based on signal inputs for any and all of your automation needs. There's also a combinator to get recipe ingredients.**
 
 -------------
@@ -27,12 +42,10 @@ Send a recipe signal to the input side. Then depending on the configuration, the
 - Recipe mode will output the signals for recipes that produce the given item
 - Machine mode will output the buildings in which the given item can be made
 
-**You can discuss and ask questions on the [forum](https://forums.factorio.com/viewtopic.php?f=93&t=34405)!**
-
 # Localisation #
 Thanks to [Nexela](https://mods.factorio.com/mods/Nexela) it is no longer necessary to use the locale mod and everything should have proper locale.
 
 # Credits #
 **[LuziferSenpai](https://mods.factorio.com/mods/LuziferSenpai) for the original idea and some of the code.**  
 [MPX](https://mods.factorio.com/mods/MPX) for the german locale and some of the code.  
-[Me](https://mods.factorio.com/mods/theRustyKnife) for the rest of the code.  
+[theRustyKnife](https://mods.factorio.com/mods/theRustyKnife) for up till v0.16.3 of the code.

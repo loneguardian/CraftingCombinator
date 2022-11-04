@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.2
-Date: ????
+Version: 0.1.4
+Date: 5-11-2022
   Info:
     - First release of Xeraph's fork (based on Crafting Combinator 0.16.3)
     - Migration to this version will acknowledge the removal of 'crafting_combinator:settings-entity (programmable-speaker)' and its related objects, this is expected
