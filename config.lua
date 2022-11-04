@@ -1,8 +1,24 @@
-return {
+---@class CcSettings
+---@field chest_position integer
+---@field mode string
+---@field wait_for_output_to_clear boolean
+---@field discard_items boolean
+---@field discard_fluids boolean
+---@field empty_inserters boolean
+---@field read_recipe boolean
+---@field read_speed boolean
+---@field read_machine_status boolean
+---@field craft_until_zero boolean
+---@field craft_n_before_switch integer
+
+local c = {
 	MOD_PATH = '__crafting_combinator_xeraph__',
 	CC_NAME = 'crafting_combinator:crafting-combinator',
+	CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:craft-n-before-switch-default',
+	CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:input-buffer-on-set-recipe-default',
 	RC_NAME = 'crafting_combinator:recipe-combinator',
 	MODULE_CHEST_NAME = 'crafting_combinator:module-chest',
+	MODULE_CHEST_SIZE_NAME ='crafting_combinator:module-chest-size',
 	REFRESH_RATE_CC_NAME = 'crafting_combinator:refresh-rate-cc',
 	REFRESH_RATE_RC_NAME = 'crafting_combinator:refresh-rate-rc',
 	RC_PROXY_NAME = 'crafting_combinator:rc-proxy',
@@ -12,6 +28,9 @@ return {
 	GROUP_NAME = 'crafting_combinator:virtual-recipes',
 	RECIPE_SUBGROUP_PREFIX = 'crafting_combinator:virtual-recipe-subgroup:',
 	UNSORTED_RECIPE_SUBGROUP = 'crafting_combinator:virtual-recipe-subgroup:unsorted',
+
+	CC_CRAFT_N_BEFORE_SWITCH_DEFAULT = 1,
+	CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT = 2,
 	
 	CC_DEFAULT_SETTINGS = {
 		chest_position = 1, -- 1 = Behind, 2 = Left, 3 = Right
@@ -24,7 +43,8 @@ return {
 		read_speed = false,
 		read_machine_status = false,
 		craft_until_zero = false,
-		craft_n_before_switch = 1
+		craft_n_before_switch = 1,
+		input_buffer_size = 2
 	},
 	RC_DEFAULT_SETTINGS = {
 		mode = 'ing',
@@ -69,3 +89,20 @@ return {
 		item_production_overload = 'signal-yellow',
 	},
 }
+
+-- load values from settings
+function c:load_values(settings)
+	self.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
+	self.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[self.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value
+end
+
+-- Mod settings events
+function c:on_mod_settings_changed(event)
+	if event.setting == self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME then
+		self.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
+	elseif event.setting == self.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME then
+		self.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[self.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value
+	end
+end
+
+return c

@@ -1,3 +1,30 @@
+---@class CacheEntities
+---@field highest LuaEntity
+---@field highest_present LuaEntity
+---@field highest_count LuaEntity
+---@field signal_present LuaEntity
+
+---@class CacheCb
+---@field _cb LuaControlBehavior
+---@field valid boolean
+---@field value CacheValue
+
+---@class CacheValue
+---@field signal CacheSignal
+
+---@class CacheSignal
+---@field type string
+---@field name string
+
+---@class SignalsCacheState
+---@field __entity LuaEntity
+---@field __circuit_id defines.circuit_connector_id
+---@field __cache_entities CacheEntities
+---@field highest CacheCb
+---@field highest_present CacheCb
+---@field highest_count CacheCb
+---@field signal_present CacheCb
+
 local config = require 'config'
 
 
@@ -33,6 +60,8 @@ local cache_mt = {
 		self[key] = {
 			__cb = entity.get_or_create_control_behavior(),
 		}
+
+		global.main_uid_by_part_uid[entity.unit_number] = self.__entity.unit_number
 		
 		return self[key]
 	end,
@@ -48,10 +77,108 @@ function _M.on_load()
 	for _, cache in pairs(global.signals.cache) do setmetatable(cache, cache_mt); end
 end
 
+---Method to migrate individual signal cache state into the game
+---@param cache_state table
+---@param uid uid  
+function _M.migrate(uid, cache_state)
+	global.signals.cache[uid] = setmetatable(cache_state, cache_mt)
+	_M.verify(uid, cache_state)
+end
+
+---Method to migrate individual signal cache lamp
+---@param lamp LuaEntity
+---@return boolean? true if migrate successful
+function _M.migrate_lamp(lamp)
+	-- check red connection for RC or CC entity, if no connection then return
+	local connected_entities = lamp.circuit_connected_entities.red
+	local combinator_entity, circuit_id
+	for i = 1, #connected_entities do
+		local entity = connected_entities[i]
+		if entity.name == config.CC_NAME then
+			combinator_entity = connected_entities[i]
+			break
+		elseif entity.name == config.RC_NAME then
+			combinator_entity = connected_entities[i]
+			circuit_id = defines.circuit_connector_id.combinator_input
+			break
+		end
+	end
+
+	if not combinator_entity then return end
+
+	-- get or create signal cache state
+	local cache = _M.cache.get(combinator_entity, circuit_id, combinator_entity.unit_number)
+
+	-- get cb
+	local cb = lamp.get_control_behavior()
+	if not (cb and cb.valid) then return end
+
+	local lamp_type
+	-- determine the type of lamp -- maybe can refactor into separate function - for ID-ing cloned lamps
+	if cb.circuit_condition.condition.first_signal.name == _M.EVERYTHING.name then
+		lamp_type = "highest"
+	elseif cb.circuit_condition.condition.comparator == "=" then
+		lamp_type = "highest_count"
+	elseif cb.circuit_condition.condition.comparator == "≠" then
+		lamp_type = "highest_present"
+	elseif cb.circuit_condition.condition.comparator == ">" then
+		lamp_type = "signal_present"
+	end
+
+	-- check cache state for existing lamps
+	-- if present and valid then return false
+	local existing_lamp = cache.__cache_entities[lamp_type]
+	if rawget(cache, lamp_type) and existing_lamp and existing_lamp.valid then
+		return false
+	else
+		cache.__cache_entities[lamp_type] = lamp
+		cache[lamp_type] = { __cb = cb }
+		global.main_uid_by_part_uid[lamp.unit_number] = combinator_entity.unit_number
+		return true
+	end
+	-- TODO: guess value and valid fields?
+end
+
+---@alias SignalsCacheState_Verify
+---|nil # signal cache state is valid
+---|1 # cache invalid
+---|2 # lamp invalid
+---@param state SignalsCacheState
+---@return SignalsCacheState_Verify
+function _M.verify(uid, state)
+	local combinator_entity = state.__entity
+	if combinator_entity and combinator_entity.valid then
+			-- check lamps and update main_uid_by_part_uid
+			local lamp_types = {"highest", "highest_count", "highest_present", "signal_present"}
+			for i= 1, #lamp_types do
+			local lamp_type = lamp_types[i]
+				if rawget(state, lamp_type) then
+					local lamp_cb = state[lamp_type].__cb
+					local lamp_entity = state.__cache_entities[lamp_type]
+					if lamp_cb and lamp_entity and lamp_entity.valid then
+						global.main_uid_by_part_uid[lamp_entity.unit_number] = uid
+					else
+						state[lamp_type] = nil
+						state.__cache_entities[lamp_type] = nil
+						return 2
+					end
+				end
+			end
+	else
+		global.signals.cache[uid] = nil
+		return 1
+	end
+end
 
 _M.cache = {}
 
+---Method to get cache state by entityUID
+---@param entity LuaEntity
+---@param circuit_id defines.circuit_connector_id.combinator_input
+---@param entityUID uid
+---@return table cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
+	---@type SignalsCacheState
 	local cache = global.signals.cache[entityUID]
 	if not cache then
 		cache = setmetatable({
@@ -64,7 +191,7 @@ function _M.cache.get(entity, circuit_id, entityUID)
 	return cache
 end
 
-function _M.cache.reset(entity, name)
+function _M.cache.reset(entity, name) -- not used? to reset already existing lamps?
 	local cache = global.signals.cache[entity.unit_number]
 	if cache and rawget(cache, name) then
 		global.signals.cache[entity.unit_number][name] = {
@@ -74,9 +201,15 @@ function _M.cache.reset(entity, name)
 end
 
 function _M.cache.drop(unit_number)
+	---@type SignalsCacheState
 	local cache = global.signals.cache[unit_number]
 	if cache then
-		for key, e in pairs(cache.__cache_entities) do e.destroy(); end
+		for _, e in pairs(cache.__cache_entities) do
+			if e.valid then
+				global.main_uid_by_part_uid[e.unit_number] = nil
+				e.destroy();
+			end
+		end
 		global.signals.cache[unit_number] = nil
 	end
 end
@@ -121,11 +254,11 @@ function _M.get_highest(entity, circuit_id, update_count, entityUID)
 	end
 	
 	local highest = nil
-	for _, signal in pairs(_M.get_merged_signals(entity, circuit_id)) do
+	for _, signal in pairs(_M.get_merged_signals(entity, circuit_id)) do -- it is an array why use pairs?
 		if highest == nil or signal.count > highest.count then highest = signal; end
 	end
 	
-	cache.highest.valid = true
+	cache.highest.valid = true ---? I can assign entity validity? or is it just a state?
 	
 	if highest then
 		cache.highest.value = highest

@@ -14,9 +14,9 @@ table.insert(cc.flags, 'not-deconstructable')
 
 for _, image in pairs(cc.sprites) do
 	local im = image.layers[1]
-	im.filename = MOD_PATH .. '/graphics/entities.png'
+	im.filename = MOD_PATH .. '/graphics/crafting-combinator.png'
 	im.y = 0
-	im.hr_version = nil
+	im.hr_version.filename = MOD_PATH .. '/graphics/hr-crafting-combinator.png'
 end
 
 local cc_item = table.deepcopy(data.raw['item']['constant-combinator'])
@@ -90,7 +90,7 @@ data:extend {
 		collision_mask = {},
 		collision_box = cc.collision_box,
 		selection_box = cc.selection_box,
-		inventory_size = config.MODULE_CHEST_SIZE,
+		inventory_size = settings.startup[config.MODULE_CHEST_SIZE_NAME].value,
 		picture = trans,
 		minable = {mining_time = 0.2, result = cc.name},
 		

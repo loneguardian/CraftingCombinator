@@ -91,13 +91,10 @@ end
 ---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
 	local unit_number = (type(entity) == "number" and entity) or entity.unit_number
-	local combinator = global.rc.data[unit_number]
 
 	-- closes gui for entity if it is opened
 	gui.destroy_entity_gui(unit_number)
-	
-	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = nil
-	combinator.output_proxy.destroy()
+
 	signals.cache.drop(unit_number)
 	
 	global.rc.data[unit_number] = nil
