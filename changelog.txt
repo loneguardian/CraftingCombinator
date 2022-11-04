@@ -7,8 +7,8 @@ Date: 5-11-2022
   Bugfixes:
     - Fixed possible duping if an incorrect recipe is sent to cc (https://github.com/theRustyKnife/CraftingCombinator/issues/70)
     - Fixed GUI not closing when its associated cc/rc is destroyed
-    - Fixed cc's tendency to buffer all available items in the overflow chest after recipe switch (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197)
-      - Cc will now insert ingredients for only two craft cycles, this can be changed from Map settings
+    - Fixed cc's tendency to insert too much items from the overflow chest after recipe switch (https://mods.factorio.com/mod/crafting_combinator/discussion/632ce909888658ef30d15be0 https://forums.factorio.com/viewtopic.php?p=570197#p570197)
+      - By default, cc will insert ingredients for only two craft cycles, this can be changed individually for each cc
   Features:
     - Blueprints and ghosts now carry cc and rc data
     - New sticky behaviour: Craft-n-before-switch
@@ -18,14 +18,14 @@ Date: 5-11-2022
         - Once sticky period is over, the cc will evaluate the signals for one update cycle and change recipe if necessary, after which the cc will be allowed to engage sticky mode again
         - The duration of sticky period is evaluated only once per sticky mode activation. It is calculated based on machine's crafting progress and speed. Actual product is not taken into account in bringing the cc out of sticky mode - this is the intended design for UPS reason
       - By default a new/migrated cc is set to allow one more craft cycle before recipe switch
-    - Cloning of cc and rc is now handled (BETA) (e.g. SE Spaceship, albeit module chest still has its chest inventory cost)
+    - Cloning of cc and rc is now handled (e.g. Space Exploration's spaceship)
     - Mod settings added for the following features:
       - Module chest inventory size (in Startup)
       - Craft-n-before-switch for newly placed cc
       - Input buffer size (during recipe change) for newly placed cc
   Locale:
     - Fixed duplicate key for cs.cfg
-    - Missing translations for new keys: 'time-multiplier:tooltip', 'sticky', 'craft-n-before-switch', 'craft-n-before-switch:tooltip', [blueprint]
+    - Missing translations for new keys
   Changes:
     - Optimized cc idle performance (https://github.com/theRustyKnife/CraftingCombinator/pull/71).
       - As a result from this optimization, the combinator will no longer attempt to switch recipe if the chosen recipe/state of no recipe is the same as the previous update cycle
