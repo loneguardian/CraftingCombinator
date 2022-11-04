@@ -1,6 +1,7 @@
 local config = require 'config'
 local cc_control = require 'script.cc'
 local rc_control = require 'script.rc'
+local signals = require 'script.signals'
 
 local get_all_cc_entities = function ()
     local entities = {}
@@ -67,6 +68,7 @@ local function cleanup()
         },
         cc_data_created = 0,
         rc_data_created = 0,
+        signal_cache_lamp_relinked = 0,
         destroyed = {
             module_chest = 0,
             output_proxy = 0,
@@ -78,6 +80,8 @@ local function cleanup()
 
     local proc_data = {
         [config.CC_NAME] = {
+            all_cc_entities_loop = true,
+            part_name = config.MODULE_CHEST_NAME,
             orphan_table = orphan.cc,
             check_global = true,
             global_data = global.cc.data,
@@ -92,6 +96,8 @@ local function cleanup()
             stat_key = "module_chest"
         },
         [config.RC_NAME] = {
+            all_cc_entities_loop = true,
+            part_name = config.RC_PROXY_NAME,
             orphan_table = orphan.rc,
             check_global = true,
             global_data = global.rc.data,
@@ -106,6 +112,7 @@ local function cleanup()
             stat_key = "output_proxy"
         },
         [config.SIGNAL_CACHE_NAME] = {
+            all_cc_entities_loop = true,
             part = true,
             orphan_table = orphan.signal_cache_lamp,
             check_global = true,
@@ -119,7 +126,6 @@ local function cleanup()
     global.main_uid_by_part_uid = {} -- reset main_uid_by_part_uid
     for entity_name, map in pairs(proc_data) do
         if not map.check_global then goto next_proc end
-
         -- find invalid entity entries
         -- else find part and update main_uid_by_part_uid
         for uid, state in pairs(map.global_data) do
@@ -165,75 +171,85 @@ local function cleanup()
                 end
             elseif entity_name == config.SIGNAL_CACHE_NAME then
                 ---@cast state SignalsCacheState
-                local combinator_entity = state.__entity
-                if combinator_entity and combinator_entity.valid then
-                     -- check lamps and update main_uid_by_part_uid
-                     local lamp_types = {"highest", "highest_count", "highest_present", "signal_present"}
-                     for i= 1, #lamp_types do
-                        local lamp_type = lamp_types[i]
-                         if rawget(state, lamp_type) then
-                             local lamp_cb = state[lamp_type].__cb
-                             local lamp_entity = state.__cache_entities[lamp_type]
-                             if lamp_cb and lamp_entity and lamp_entity.valid then
-                                global.main_uid_by_part_uid[lamp_entity.unit_number] = uid
-                             else
-                                state[lamp_type] = nil
-                                state.__cache_entities[lamp_type] = nil
-                                count.invalid[map.stat_key].lamp = count.invalid[map.stat_key].lamp + 1
-                             end
-                         end
-                     end
-                else
-                    map.global_data[uid] = nil
-                    count.invalid[map.stat_key].cache_state = count.invalid[map.stat_key].cache_state + 1
+                local invalid = signals.verify(uid, state)
+                if invalid then
+                    if invalid == 1 then
+                        count.invalid[map.stat_key].cache_state = count.invalid[map.stat_key].cache_state + 1
+                    else
+                        count.invalid[map.stat_key].lamp = count.invalid[map.stat_key].lamp + 1
+                    end
                 end
             end
         end
         ::next_proc::
     end
 
-    log({"", "New main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
-
+    -- loop through all_cc_entities for cc/rc/signal lamp
+    -- find orphaned cc/rc/signal lamp
+    -- cc/rc: try to create global data
+    -- signal lamp: try to link
     local all_cc_entities = get_all_cc_entities()
-    -- loop through all_cc_entities
     for i = #all_cc_entities, 1, -1 do
         local entity = all_cc_entities[i]
-        local uid = entity.unit_number
         local entity_name = entity.name
-        local global_data = proc_data[entity_name].global_data
-        local stat_key = proc_data[entity_name].stat_key
-
-        -- find orphaned cc - try to generate cc.data?
-        if proc_data[entity_name].part then
-            -- find orphaned parts -> destroy
-            if not global.main_uid_by_part_uid[uid] then
-                entity.destroy()
-                if entity_name == config.SIGNAL_CACHE_NAME then
-                    count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
-                else
-                    count.destroyed[stat_key] = count.destroyed[stat_key] + 1
-                end
+        if not proc_data[entity_name].all_cc_entities_loop then goto next_entity end
+        local uid = entity.unit_number
+        if entity_name == config.SIGNAL_CACHE_NAME then
+            if global.main_uid_by_part_uid[uid] then goto not_orphan end
+            if signals.migrate_lamp(entity) then
+                count.signal_cache_lamp_relinked = count.signal_cache_lamp_relinked + 1
+            else
+                goto next_entity
             end
-        else
-            if not global_data[uid] then
-                -- find orphaned cc/rc - try to create global data
+        else -- cc/rc state
+            if not proc_data[entity_name].global_data[uid] then -- cc/rc state not found
                 local control = proc_data[entity_name].main_control
+                local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
+                local migrated_state
+                if part and part.valid then
+                    migrated_state = {[proc_data[entity_name].part_name] = part}
+                    global.main_uid_by_part_uid[part.unit_number] = uid
+                end
+                control.create(entity, nil, migrated_state)
                 if entity_name == config.CC_NAME then
-                    control.create(entity)
                     count.cc_data_created = count.cc_data_created + 1
                 elseif entity_name == config.RC_NAME then
-                    control.create(entity)
                     count.rc_data_created = count.rc_data_created + 1
                 end
             end
         end
+        ::not_orphan::
+        table.remove(all_cc_entities, i)
+        ::next_entity::
     end
+
+    log({"", "New main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
 
     if count.cc_data_created > 0 then
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " CC state(s) has been created with default settings."}})
     end
     if count.rc_data_created > 0 then
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " RC state(s) has been created with default settings."}})
+    end
+
+    -- remaining orphans -> destroy
+    for i = #all_cc_entities, 1, -1 do
+        local entity = all_cc_entities[i]
+        local entity_name = entity.name
+        local uid = entity.unit_number
+        if proc_data[entity_name].part then
+            if not global.main_uid_by_part_uid[uid] then
+                entity.destroy()
+                if entity_name == config.SIGNAL_CACHE_NAME then
+                    count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
+                else
+                    local stat_key = proc_data[entity_name].stat_key
+                    count.destroyed[stat_key] = count.destroyed[stat_key] + 1
+                end
+            end
+        else
+            game.print({"crafting_combinator.chat-message", {"", "Cleanup(): Remnant mains in all_cc_entities table, please inform mod author."}})
+        end
     end
 
     -- regenerate global.cc/rc.ordered
@@ -257,6 +273,7 @@ end
 
 local h = {
     --cleanup_delayed_bp_state = cleanup_delayed_bp_state,
+    cleanup = cleanup,
     cc_command = cc_command,
     get_all_cc_entities = get_all_cc_entities
 }
