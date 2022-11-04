@@ -185,9 +185,9 @@ local function cleanup()
             else
                 goto next_entity
             end
+            ::not_orphan::
+            table.remove(all_cc_entities, i)
         end
-        ::not_orphan::
-        table.remove(all_cc_entities, i)
         ::next_entity::
     end
 
@@ -233,19 +233,17 @@ local function cleanup()
         local entity_name = entity.name
         local uid = entity.unit_number
         if proc_data[entity_name].part then
-            if not global.main_uid_by_part_uid[uid] then
-                entity.destroy()
-                if entity_name == config.SIGNAL_CACHE_NAME then
-                    count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
-                else
-                    local stat_key = proc_data[entity_name].stat_key
-                    count.destroyed[stat_key] = count.destroyed[stat_key] + 1
-                end
-                goto next_entity
+            if global.main_uid_by_part_uid[uid] then goto next_entity end
+            entity.destroy()
+            if entity_name == config.SIGNAL_CACHE_NAME then
+                count.destroyed.signal_cache_lamp = count.destroyed.signal_cache_lamp + 1
+            else
+                local stat_key = proc_data[entity_name].stat_key
+                count.destroyed[stat_key] = count.destroyed[stat_key] + 1
             end
+            goto next_entity
         end
-        ::remnant_found::
-        game.print({"crafting_combinator.chat-message", {"", "Cleanup(): Remnant ", entity_name , " in all_cc_entities table, please inform mod author."}})
+        game.print({"crafting_combinator.chat-message", {"", "Cleanup(): Remnant orphan ", entity_name , " in all_cc_entities table, please inform mod author."}})
         ::next_entity::
     end
 
