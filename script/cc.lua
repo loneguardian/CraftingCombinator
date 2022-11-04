@@ -82,9 +82,10 @@ end
 
 ---Create method for cc state
 ---@param entity LuaEntity
----@param tags Tags
+---@param tags? Tags
 ---@param migrated_state? table
-function _M.create(entity, tags, migrated_state)
+---@param skip_find? boolean
+function _M.create(entity, tags, migrated_state, skip_find)
 	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
@@ -121,14 +122,15 @@ function _M.create(entity, tags, migrated_state)
 		combinator.last_recipe = migrated_state.last_recipe or false
 		combinator.last_assembler_recipe = combinator.last_recipe
 		combinator.inventories = migrated_state.inventories or combinator.inventories
-		return
 	end
 
-	combinator:find_assembler() -- latch to assembler
-	combinator:find_chest() -- latch to chest
+	if not skip_find then
+		combinator:find_assembler() -- latch to assembler
+		combinator:find_chest() -- latch to chest
 
-	-- Other combinators can use the module chest as overflow output, so let them know it's there
-	_M.update_chests(entity.surface, combinator.module_chest)
+		-- Other combinators can use the module chest as overflow output, so let them know it's there
+		_M.update_chests(entity.surface, combinator.module_chest)
+	end
 end
 
 -- Deconstruction handlers
