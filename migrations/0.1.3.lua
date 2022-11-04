@@ -1,6 +1,9 @@
 if not late_migrations then return end
 
-late_migrations["0.1.3"] = function()
+late_migrations["0.1.3"] = function(changes)
+    local change = changes.mod_changes['crafting_combinator_xeraph']
+	if not change or not change.old_version then return; end
+
     local config = require 'config'
     -- remove obsolete globals
     if global.dead_combinator_settings then global.dead_combinator_settings = nil end
