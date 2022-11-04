@@ -189,17 +189,16 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	end
 end
 
--- load values from settings
-config.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[config.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
-config.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[config.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value
 
+-- load values from settings on script load
+config:load_values(settings)
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	if event.setting == config.REFRESH_RATE_CC_NAME then
 		cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
 	elseif event.setting == config.REFRESH_RATE_RC_NAME then
 		rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
 	end
-	config.on_mod_settings_changed(event)
+	config:on_mod_settings_changed(event)
 end)
 
 local function run_update(tab, tick, rate)
