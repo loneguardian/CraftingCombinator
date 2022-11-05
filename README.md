@@ -1,12 +1,9 @@
 # Fork Notice #
-This is a fork to theRustyKnife's [Crafting Combinator mod v0.16.3](https://github.com/theRustyKnife/CraftingCombinator).
+This is a fork to theRustyKnife's [Crafting Combinator mod v0.16.3](https://mods.factorio.com/mod/crafting_combinator).
 
 # Migration #
 This fork is **not compatible** with the original mod. If you wish to migrate your current save to this fork you can do the following:
-1. Follow the [remote-data migration procedures](https://github.com/loneguardian/crafting_combinator_xeraph_migration) using the migration bridge mod.
-
-   OR
-
+1. Follow the [remote-data migration procedures](https://github.com/loneguardian/crafting_combinator_xeraph_migration) using the [migration bridge mod](https://mods.factorio.com/mod/crafting_combinator_xeraph_migration). **OR**
 2. Load this fork over your existing save. WARNING: All combinators will be migrated with default settings and data state.
 
 Upon migrating to this fork, you will notice the removal of `crafting_combinator:settings-entity (programmable-speaker)` and its related objects, this is to be expected.
