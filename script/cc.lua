@@ -173,13 +173,13 @@ function _M.destroy(entity)
 end
 
 ---Called when a cc entity is mined by player during on_player_mined_entity
----@param unit_number integer uid for cc entity
+---@param uid integer uid for cc entity
 ---@param player_index integer
 ---@return boolean true when successfully mined
-function _M.mine_module_chest(unit_number, player_index)
+function _M.mine_module_chest(uid, player_index)
 	if player_index then
 		local player = game.get_player(player_index)
-		local combinator = global.cc.data[unit_number]
+		local combinator = global.cc.data[uid]
 		local success = player.mine_entity(combinator.module_chest)
 		if success then
 			return success
@@ -187,7 +187,7 @@ function _M.mine_module_chest(unit_number, player_index)
 			-- Clone the combinator entity as replacement
 			-- Set the skip_clone_helper tag
 			combinator.skip_clone_helper = true
-			gui.destroy_entity_gui(unit_number)
+			gui.destroy_entity_gui(uid)
 			local old_entity = combinator.entity
 			combinator.entity = old_entity.clone { position = old_entity.position, create_build_effect_smoke = false }
 			combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
@@ -195,12 +195,12 @@ function _M.mine_module_chest(unit_number, player_index)
 			local new_uid = combinator.entity.unit_number
 			combinator.entityUID = new_uid
 
-			-- Transfer signals cache
-			local signals_cache = global.signals.cache[unit_number]
+			-- Update signals cache
+			local signals_cache = global.signals.cache[uid]
 			if signals_cache then
 				signals_cache.__entity = combinator.entity
 				global.signals.cache[new_uid] = signals_cache
-				global.signals.cache[unit_number] = nil
+				global.signals.cache[uid] = nil
 			end
 
 			for _, connection in pairs(old_entity.circuit_connection_definitions) do
@@ -208,7 +208,11 @@ function _M.mine_module_chest(unit_number, player_index)
 			end
 
 			global.cc.data[new_uid] = combinator
-			global.cc.data[unit_number] = nil
+			global.cc.data[uid] = nil
+
+			-- Update main_uid_by_part_uid
+			global.main_uid_by_part_uid[combinator.module_chest.unit_number] = new_uid
+
 			old_entity.destroy()
 		end
 	end
