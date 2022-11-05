@@ -43,9 +43,9 @@ local function on_load(forced)
 end
 
 local function init_global()
-	global.delayed_blueprint_tag_state = global.delayed_blueprint_tag_state or {}
-	global.clone_placeholder = global.clone_placeholder or {}
-	global.main_uid_by_part_uid = global.main_uid_by_part_uid or {}
+	global.delayed_blueprint_tag_state = {}
+	global.clone_placeholder = {combinator = {count = 0}, cache = {count = 0}}
+	global.main_uid_by_part_uid = {}
 end
 
 script.on_init(function()
