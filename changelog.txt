@@ -1,7 +1,11 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.5
-Date: ????
+Version: 0.2.0
+Date: 2022-11-08
+  Bugfixes:
+    - Fixes possible bug for when player mines a cc without sufficient inventory space (77cd21e7d1ac4e64c33cf70b437434d5d971acfd)
   Changes:
+    - Cloning module has been rewritten to properly handle signal cache cloning
+    - Minor optimizations
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
 Date: 2022-11-04
