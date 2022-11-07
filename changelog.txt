@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
-Date: 2022-11-08
+Date: 2022-11-07
   Bugfixes:
     - Fixes possible bug that can happen when a player mines a cc without sufficient inventory space for module chest's content (https://github.com/loneguardian/CraftingCombinator/commit/77cd21e7d1ac4e64c33cf70b437434d5d971acfd)
   Changes:
