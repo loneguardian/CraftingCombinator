@@ -267,7 +267,7 @@ end
 
 ---Method to update CC state
 ---@param forced boolean Forced update clears control_behavior signals.
-function _M:update(forced)
+function _M:update(forced, current_tick)
 	if forced then
 		params:clear()
 		self.control_behavior.parameters = params.data
@@ -281,7 +281,7 @@ function _M:update(forced)
 				self.control_behavior.parameters = params.data
 				self.read_mode_cb = false
 			end
-			self:set_recipe()
+			self:set_recipe(current_tick)
 		else --self.settings.mode == 'r'
 			self.read_mode_cb = true
 			params:clear()
@@ -439,11 +439,11 @@ function _M:read_machine_status(params)
 	})
 end
 
-function _M:set_recipe()
+function _M:set_recipe(current_tick)
 	-- Check sticky state and return early if still sticky
 	if self.sticky then
 		-- craft-n-before-switch
-		if game.tick >= self.unstick_at_tick then
+		if current_tick >= self.unstick_at_tick then
 			self.sticky = false
 			self.allow_sticky = false
 		else
@@ -497,7 +497,7 @@ function _M:set_recipe()
 
 			local delay = math.ceil((progress_remaining + full_craft_count) * ticks_per_craft)
 
-			self.unstick_at_tick = game.tick + delay
+			self.unstick_at_tick = current_tick + delay
 			self.sticky = true
 			return true
 		end
@@ -505,13 +505,13 @@ function _M:set_recipe()
 		-- Move items if necessary
 		local success, error = self:move_items()
 
-		if not success then return self:on_chest_full(error); end
+		if not success then return self:on_chest_full(error, current_tick); end
 
 		if self.settings.empty_inserters then
 			success, error = self:empty_inserters()
-			if not success then return self:on_chest_full(error); end
+			if not success then return self:on_chest_full(error, current_tick); end
 
-			local tick = game.tick + config.INSERTER_EMPTY_DELAY
+			local tick = current_tick + config.INSERTER_EMPTY_DELAY
 			global.cc.inserter_empty_queue[tick] = global.cc.inserter_empty_queue[tick] or {}
 			table.insert(global.cc.inserter_empty_queue[tick], self)
 		end
@@ -687,11 +687,11 @@ function _M:move_items()
 	return true
 end
 
-function _M:on_chest_full(error)
+function _M:on_chest_full(error, current_tick)
 	-- Prevent the assembler from crafting any more shit
 	self.assembler.active = false
-	if game.tick - self.last_flying_text_tick >= config.FLYING_TEXT_INTERVAL then
-		self.last_flying_text_tick = game.tick
+	if current_tick - self.last_flying_text_tick >= config.FLYING_TEXT_INTERVAL then
+		self.last_flying_text_tick = current_tick
 		self.entity.surface.create_entity {
 			name = 'flying-text',
 			position = self.entity.position,

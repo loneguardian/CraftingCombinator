@@ -211,7 +211,7 @@ local function cleanup()
             elseif entity_name == config.RC_NAME then
                 count.rc_data_created = count.rc_data_created + 1
             end
-            proc_data[entity_name].global_data[uid]:update(true)
+            proc_data[entity_name].global_data[uid]:update(true, game.tick)
         end
         table.remove(all_cc_entities, i)
         ::next_entity::

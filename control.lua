@@ -208,7 +208,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 end)
 
 local function run_update(tab, tick, rate)
-	for i = tick % (rate + 1) + 1, #tab, (rate + 1) do tab[i]:update(); end
+	for i = tick % (rate + 1) + 1, #tab, (rate + 1) do tab[i]:update(nil, tick); end
 end
 script.on_event(defines.events.on_tick, function(event)
 	if global.cc.inserter_empty_queue[event.tick] then

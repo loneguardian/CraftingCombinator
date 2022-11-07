@@ -11,7 +11,7 @@ local ph_combinator, ph_cache, ph_timestamp, main_uid_by_part_uid
 local on_load = function()
     ph_combinator = global.clone_placeholder.combinator
     ph_cache = global.clone_placeholder.cache
-    ph_timestamp = global.clone_placeholder.timestamp -- key: old_main_uid, value: game.tick
+    ph_timestamp = global.clone_placeholder.timestamp -- key: old_main_uid, value: event.tick
     main_uid_by_part_uid = global.main_uid_by_part_uid
 end
 
