@@ -12,9 +12,6 @@ local clone_helper = require 'script.clone-helper'
 local housekeeping = require 'script.housekeeping'
 commands.add_command("crafting_combinator_xeraph", nil, housekeeping.cc_command)
 
-local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
-local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
-
 local function enable_recipes()
 	for _, force in pairs(game.forces) do
 		if force.technologies['circuit-network'].researched then
@@ -197,8 +194,9 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	end
 end
 
-
 -- load values from settings on script load
+local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
+local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
 config:load_values(settings)
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	if event.setting == config.REFRESH_RATE_CC_NAME then
