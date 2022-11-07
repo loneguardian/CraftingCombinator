@@ -4,7 +4,7 @@ late_migrations["0.2.0"] = function(changes)
     local change = changes.mod_changes['crafting_combinator_xeraph']
     if not change or not change.old_version then return; end
 
-    -- update all module chest lookup in main_uid_by_part_uid
+    -- redo all module chest lookup in main_uid_by_part_uid
     for uid, state in pairs(global.cc.data) do
         global.main_uid_by_part_uid[state.module_chest.unit_number] = uid
     end
@@ -14,7 +14,7 @@ late_migrations["0.2.0"] = function(changes)
     if table_size(clone_ph) > 0 then
         for k, v in pairs(clone_ph) do
             if type(k) == "number" then
-                game.print("Clone placeholder cleanup by 0.2.0 migration.")
+                game.print("[Crafting Combinator] 0.2.0 migration: Entity deleted due to clone placeholder cleanup.")
                 log({"", "Entities destroyed for key: ", k})
                 if v.entity and v.entity.valid then
                     log(v.entity.name)
@@ -33,7 +33,7 @@ late_migrations["0.2.0"] = function(changes)
         end
     end
     
-    -- recreate clone_ph data structure
+    -- create new clone_ph data structure
     global.clone_placeholder = {
         combinator = {count = 0},
         cache = {count = 0},
