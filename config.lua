@@ -90,7 +90,7 @@ local c = {
 	},
 }
 
--- load values from settings
+-- load values on script load
 function c:load_values(settings)
 	self.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
 	self.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[self.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value

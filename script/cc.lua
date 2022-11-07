@@ -173,13 +173,13 @@ function _M.destroy(entity)
 end
 
 ---Called when a cc entity is mined by player during on_player_mined_entity
----@param unit_number integer uid for cc entity
+---@param uid integer uid for cc entity
 ---@param player_index integer
 ---@return boolean true when successfully mined
-function _M.mine_module_chest(unit_number, player_index)
+function _M.mine_module_chest(uid, player_index)
 	if player_index then
 		local player = game.get_player(player_index)
-		local combinator = global.cc.data[unit_number]
+		local combinator = global.cc.data[uid]
 		local success = player.mine_entity(combinator.module_chest)
 		if success then
 			return success
@@ -187,7 +187,7 @@ function _M.mine_module_chest(unit_number, player_index)
 			-- Clone the combinator entity as replacement
 			-- Set the skip_clone_helper tag
 			combinator.skip_clone_helper = true
-			gui.destroy_entity_gui(unit_number)
+			gui.destroy_entity_gui(uid)
 			local old_entity = combinator.entity
 			combinator.entity = old_entity.clone { position = old_entity.position, create_build_effect_smoke = false }
 			combinator.control_behavior = combinator.entity.get_or_create_control_behavior()
@@ -195,12 +195,12 @@ function _M.mine_module_chest(unit_number, player_index)
 			local new_uid = combinator.entity.unit_number
 			combinator.entityUID = new_uid
 
-			-- Transfer signals cache
-			local signals_cache = global.signals.cache[unit_number]
+			-- Update signals cache
+			local signals_cache = global.signals.cache[uid]
 			if signals_cache then
 				signals_cache.__entity = combinator.entity
 				global.signals.cache[new_uid] = signals_cache
-				global.signals.cache[unit_number] = nil
+				global.signals.cache[uid] = nil
 			end
 
 			for _, connection in pairs(old_entity.circuit_connection_definitions) do
@@ -208,7 +208,11 @@ function _M.mine_module_chest(unit_number, player_index)
 			end
 
 			global.cc.data[new_uid] = combinator
-			global.cc.data[unit_number] = nil
+			global.cc.data[uid] = nil
+
+			-- Update main_uid_by_part_uid
+			global.main_uid_by_part_uid[combinator.module_chest.unit_number] = new_uid
+
 			old_entity.destroy()
 		end
 	end
@@ -263,7 +267,7 @@ end
 
 ---Method to update CC state
 ---@param forced boolean Forced update clears control_behavior signals.
-function _M:update(forced)
+function _M:update(forced, current_tick)
 	if forced then
 		params:clear()
 		self.control_behavior.parameters = params.data
@@ -277,7 +281,7 @@ function _M:update(forced)
 				self.control_behavior.parameters = params.data
 				self.read_mode_cb = false
 			end
-			self:set_recipe()
+			self:set_recipe(current_tick)
 		else --self.settings.mode == 'r'
 			self.read_mode_cb = true
 			params:clear()
@@ -435,11 +439,11 @@ function _M:read_machine_status(params)
 	})
 end
 
-function _M:set_recipe()
+function _M:set_recipe(current_tick)
 	-- Check sticky state and return early if still sticky
 	if self.sticky then
 		-- craft-n-before-switch
-		if game.tick >= self.unstick_at_tick then
+		if current_tick >= self.unstick_at_tick then
 			self.sticky = false
 			self.allow_sticky = false
 		else
@@ -493,7 +497,7 @@ function _M:set_recipe()
 
 			local delay = math.ceil((progress_remaining + full_craft_count) * ticks_per_craft)
 
-			self.unstick_at_tick = game.tick + delay
+			self.unstick_at_tick = current_tick + delay
 			self.sticky = true
 			return true
 		end
@@ -501,13 +505,13 @@ function _M:set_recipe()
 		-- Move items if necessary
 		local success, error = self:move_items()
 
-		if not success then return self:on_chest_full(error); end
+		if not success then return self:on_chest_full(error, current_tick); end
 
 		if self.settings.empty_inserters then
 			success, error = self:empty_inserters()
-			if not success then return self:on_chest_full(error); end
+			if not success then return self:on_chest_full(error, current_tick); end
 
-			local tick = game.tick + config.INSERTER_EMPTY_DELAY
+			local tick = current_tick + config.INSERTER_EMPTY_DELAY
 			global.cc.inserter_empty_queue[tick] = global.cc.inserter_empty_queue[tick] or {}
 			table.insert(global.cc.inserter_empty_queue[tick], self)
 		end
@@ -683,11 +687,11 @@ function _M:move_items()
 	return true
 end
 
-function _M:on_chest_full(error)
+function _M:on_chest_full(error, current_tick)
 	-- Prevent the assembler from crafting any more shit
 	self.assembler.active = false
-	if game.tick - self.last_flying_text_tick >= config.FLYING_TEXT_INTERVAL then
-		self.last_flying_text_tick = game.tick
+	if current_tick - self.last_flying_text_tick >= config.FLYING_TEXT_INTERVAL then
+		self.last_flying_text_tick = current_tick
 		self.entity.surface.create_entity {
 			name = 'flying-text',
 			position = self.entity.position,

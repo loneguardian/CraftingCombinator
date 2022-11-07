@@ -12,9 +12,6 @@ local clone_helper = require 'script.clone-helper'
 local housekeeping = require 'script.housekeeping'
 commands.add_command("crafting_combinator_xeraph", nil, housekeeping.cc_command)
 
-local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
-local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
-
 local function enable_recipes()
 	for _, force in pairs(game.forces) do
 		if force.technologies['circuit-network'].researched then
@@ -43,9 +40,9 @@ local function on_load(forced)
 end
 
 local function init_global()
-	global.delayed_blueprint_tag_state = global.delayed_blueprint_tag_state or {}
-	global.clone_placeholder = global.clone_placeholder or {}
-	global.main_uid_by_part_uid = global.main_uid_by_part_uid or {}
+	global.delayed_blueprint_tag_state = {}
+	global.clone_placeholder = {combinator = {count = 0}, cache = {count = 0}, timestamp = {}}
+	global.main_uid_by_part_uid = {}
 end
 
 script.on_init(function()
@@ -88,15 +85,23 @@ local function on_built(event)
 	blueprint.handle_event(event)
 end
 
+--- Lookup table for cc entities.
+--- @type { [string]: boolean } Value is always true
+local is_cc_entities = {
+	[config.CC_NAME] = true,
+	[config.RC_NAME] = true,
+	[config.MODULE_CHEST_NAME] = true,
+	[config.RC_PROXY_NAME] = true,
+	[config.SIGNAL_CACHE_NAME] = true
+}
+
 local function on_cloned(event)
 	local entity = event.destination
 	if not (entity and entity.valid) then return end
 
-	-- main or part
-	if entity.name == config.CC_NAME or entity.name == config.RC_NAME then
-		clone_helper.on_main_cloned(event)
-	elseif entity.name == config.MODULE_CHEST_NAME or entity.name == config.RC_PROXY_NAME then
-		clone_helper.on_part_cloned(event)
+	-- cc entities - cc, rc, module chest, output proxy, lamp
+	if is_cc_entities[entity.name] then
+		clone_helper.on_entity_cloned(event)
 	end
 
 	-- assembler and containers
@@ -189,8 +194,9 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	end
 end
 
-
 -- load values from settings on script load
+local cc_rate = settings.global[config.REFRESH_RATE_CC_NAME].value
+local rc_rate = settings.global[config.REFRESH_RATE_RC_NAME].value
 config:load_values(settings)
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	if event.setting == config.REFRESH_RATE_CC_NAME then
@@ -202,7 +208,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 end)
 
 local function run_update(tab, tick, rate)
-	for i = tick % (rate + 1) + 1, #tab, (rate + 1) do tab[i]:update(); end
+	for i = tick % (rate + 1) + 1, #tab, (rate + 1) do tab[i]:update(nil, tick); end
 end
 script.on_event(defines.events.on_tick, function(event)
 	if global.cc.inserter_empty_queue[event.tick] then

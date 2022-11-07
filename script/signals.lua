@@ -254,11 +254,12 @@ function _M.get_highest(entity, circuit_id, update_count, entityUID)
 	end
 	
 	local highest = nil
-	for _, signal in pairs(_M.get_merged_signals(entity, circuit_id)) do -- it is an array why use pairs?
-		if highest == nil or signal.count > highest.count then highest = signal; end
+	local signals = _M.get_merged_signals(entity, circuit_id)
+	for i=1,#signals do
+		if highest == nil or signals[i].count > highest.count then highest = signals[i]; end
 	end
 	
-	cache.highest.valid = true ---? I can assign entity validity? or is it just a state?
+	cache.highest.valid = true
 	
 	if highest then
 		cache.highest.value = highest
