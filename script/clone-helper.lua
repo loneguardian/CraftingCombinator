@@ -5,15 +5,13 @@
 
 local config = require "config"
 local util = require "script.util"
-local signals = require "script.signals"
+local cc_control = require "script.cc"
 
--- Clone placeholder - key: old main uid, value: new partial state
--- Key should be released once the state construction is deemed complete
 local ph_combinator, ph_cache, ph_timestamp, main_uid_by_part_uid
 local on_load = function()
     ph_combinator = global.clone_placeholder.combinator
     ph_cache = global.clone_placeholder.cache
-    ph_timestamp = global.clone_placeholder.timestamp
+    ph_timestamp = global.clone_placeholder.timestamp -- key: old_main_uid, value: game.tick
     main_uid_by_part_uid = global.main_uid_by_part_uid
 end
 
@@ -24,7 +22,17 @@ local get_ph_type = {
     [config.MODULE_CHEST_NAME] = "combinator-part",
     [config.RC_NAME] = "combinator-main",
     [config.RC_PROXY_NAME] = "combinator-part",
-    [config.SIGNAL_CACHE_NAME] = 'cache'
+    [config.SIGNAL_CACHE_NAME] = "cache"
+}
+
+--- state type lookup by entity name
+---@type { [string]: ph_type }
+local get_state_type = {
+    [config.CC_NAME] = "cc",
+    [config.MODULE_CHEST_NAME] = "cc",
+    [config.RC_NAME] = "rc",
+    [config.RC_PROXY_NAME] = "rc",
+    [config.SIGNAL_CACHE_NAME] = "cache"
 }
 
 ---comment
@@ -32,7 +40,7 @@ local get_ph_type = {
 ---@param old_uid uid
 ---@param new_entity LuaEntity
 ---@return table|unknown
-local get_ph = function(ph_type, old_uid, new_entity)
+local get_ph = function(ph_type, old_uid, new_entity, current)
     local ph, old_main_uid
     if ph_type ~= "cache" then
         if ph_type == "combinator-main" then
@@ -43,41 +51,49 @@ local get_ph = function(ph_type, old_uid, new_entity)
             ph = ph_combinator[old_main_uid]
         end
         if not ph then
+            local new_entity_name = new_entity.name
             -- create new ph
             ph = {entity = false}
-            if new_entity.name == config.CC_NAME or new_entity.name == config.MODULE_CHEST_NAME then
+            if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
                 ph.module_chest = false
-            else -- rc entities
+            elseif new_entity_name == config.RC_NAME or new_entity_name == config.RC_PROXY_NAME then
                 ph.output_proxy = false
             end
             ph_combinator[old_main_uid] = ph
             ph_combinator.count = ph_combinator.count + 1
+            ph_timestamp[old_main_uid] = current
         end
     else
-        old_main_uid = main_uid_by_part_uid[old_uid]
+        old_main_uid = main_uid_by_part_uid[old_uid] or old_uid
         ph = ph_cache[old_main_uid]
         if not ph then
-            -- create new ph
-            ph = {__entity = false}
-            -- create keys based on signals cache
-            for k in pairs(global.signals.cache[old_main_uid].__cache_entities) do
-                ph[k] = false
+            local old_cache_state = global.signals.cache[old_main_uid] -- for main that does not have a cache
+            if old_cache_state then
+                -- create new ph
+                ph = {entity = false}
+                -- create keys based on signals cache
+                for k in pairs(old_cache_state.__cache_entities) do
+                    ph[k] = false
+                end
+                ph_cache[old_main_uid] = ph
+                ph_cache.count = ph_cache.count + 1
+                ph_timestamp[old_main_uid] = current
             end
-            ph_cache[old_main_uid] = ph
-            ph_cache.count = ph_cache.count + 1
         end
     end
-    return ph
+    ::exit::
+    return ph, old_main_uid
 end
 
 local update_ph = function(ph, old_uid, new_entity)
-    if new_entity.name == config.CC_NAME or new_entity.name == config.RC_NAME then
+    local new_entity_name = new_entity.name
+    if new_entity_name == config.CC_NAME or new_entity_name == config.RC_NAME then
         ph.entity = new_entity
-    elseif new_entity.name == config.MODULE_CHEST_NAME then
+    elseif new_entity_name == config.MODULE_CHEST_NAME then
         ph.module_chest = new_entity
-    elseif new_entity.name == config.RC_PROXY_NAME then
+    elseif new_entity_name == config.RC_PROXY_NAME then
         ph.output_proxy = new_entity
-    elseif new_entity.name == config.SIGNAL_CACHE_NAME then
+    elseif new_entity_name == config.SIGNAL_CACHE_NAME then
         local old_cache_state = global.signals.cache[main_uid_by_part_uid[old_uid]]
         for lamp_type, entity in pairs(old_cache_state.__cache_entities) do
             if entity.unit_number == old_uid then
@@ -88,206 +104,112 @@ local update_ph = function(ph, old_uid, new_entity)
     end
 end
 
-local verify_ph = function()
-    -- loop through all keys, if all entity valid then construct new state
+local update_main_by_part_lookup = function(ph)
+    local main_uid = ph.entity.unit_number
+    for k, part in pairs(ph) do
+        if not(k == "entity") then
+            global.main_uid_by_part_uid[part.unit_number] = main_uid
+        end
+    end
+end
+
+local cleanup_ph = function(old_main_uid, clone_ph)
+    clone_ph[old_main_uid] = nil
+    clone_ph.count = clone_ph.count - 1
+    ph_timestamp[old_main_uid] = nil
+end
+
+
+---Verify placeholder for clone destination information for all components,
+---if all present then contruct/clone new state
+---@param ph table
+---@param state_type string
+local verify_ph = function(ph, state_type, old_main_uid)
+    -- loop through all keys, check for entity.valid
+    for _, entity in pairs(ph) do
+        if not(entity and entity.valid) then return end
+    end
+    
+    -- all entity valid
+    -- construct new state
+    local new_main_uid = ph.entity.unit_number
+    if state_type == "cc" then
+        ---@type CcState
+        local state = util.deepcopy(global.cc.data[old_main_uid])
+        state.entity = ph.entity
+        state.entityUID = new_main_uid
+        state.control_behavior = state.entity.get_or_create_control_behavior()
+        state.module_chest = ph.module_chest
+        state.inventories.module_chest = state.module_chest.get_inventory(defines.inventory.chest)
+        state:find_assembler() -- latch to assembler
+		state:find_chest() -- latch to chest
+        cc_control.update_chests(state.entity.surface, state.module_chest)
+        global.cc.data[new_main_uid] = state
+        table.insert(global.cc.ordered, state)
+    elseif state_type == "rc" then
+        ---@type RcState
+        local state = util.deepcopy(global.rc.data[old_main_uid])
+        state.entity = ph.entity
+        state.entityUID = new_main_uid
+        state.output_proxy = ph.output_proxy
+        state.input_control_behavior = state.entity.get_or_create_control_behavior()
+        state.control_behavior = state.output_proxy.get_or_create_control_behavior()
+        global.rc.data[new_main_uid] = state
+        table.insert(global.rc.ordered, state)
+    elseif state_type == "cache" then
+        local state = util.deepcopy(global.signals.cache[old_main_uid])
+        state.__entity = ph.entity
+        for lamp_type, lamp in pairs(ph) do
+            if lamp_type ~= "entity" then
+                state.__cache_entities[lamp_type] = lamp
+                state[lamp_type].__cb = lamp.get_or_create_control_behavior()
+            end
+        end
+        global.signals.cache[new_main_uid] = state
+    end
+    update_main_by_part_lookup(ph)
+    if state_type == "cache" then
+        cleanup_ph(old_main_uid, ph_cache)
+    else
+        cleanup_ph(old_main_uid, ph_combinator)
+    end
 end
 
 ---Clone-helper's handler for on_entity_cloned.
 ---Should receives only cc entities
 ---@param event EventData.on_entity_cloned
 local on_entity_cloned = function(event)
-    local old_uid = event.source.unit_number
+    local old_uid = event.source.unit_number ---@type uint
     local new_entity = event.destination
-    local ph_type = get_ph_type[new_entity.name]
+    local new_entity_name = new_entity.name
+    local ph_type = get_ph_type[new_entity_name]
+    local current = event.tick
 
-    local ph = get_ph(ph_type, old_uid, new_entity)
-    update_ph(ph, old_uid, new_entity)
-    verify_ph()
-end
+    -- if main, it will trigger its own ph + cache ph
+    if ph_type == 'combinator-main' then
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
+        update_ph(ph, old_uid, new_entity)
+        local state_type = get_state_type[new_entity_name]
+        verify_ph(ph, state_type, old_main_uid)
 
----------------------------------
----------------------------------
-
----Called everytime after the state for an entity part is constructed: on_main_cloned() on_part_cloned()
----@param uid uid for old main entity
-local verify_partial_state = function(uid)
-    local new_entity = ph_combinator[uid].entity
-    -- check if everything is complete:
-    if not(new_entity and new_entity.valid) then return end
-    
-    local entity_name = new_entity.name
-    if entity_name == config.CC_NAME then
-        if not(ph_combinator[uid].module_chest and ph_combinator[uid].module_chest.valid) then return end
-    else
-        if not(ph_combinator[uid].output_proxy and ph_combinator[uid].output_proxy.valid) then return end
-    end
-
-    -- release last_update key
-    ph_combinator[uid].last_update = nil
-
-    -- push new uids to global.main_uid_by_part_uid
-    if entity_name == config.CC_NAME then
-        main_uid_by_part_uid[ph_combinator[uid].module_chest.unit_number] = ph_combinator[uid].entityUID
-    else
-        main_uid_by_part_uid[ph_combinator[uid].output_proxy.unit_number] = ph_combinator[uid].entityUID
-    end
-        
-    -- push to data using new entity uid as
-    if entity_name == config.CC_NAME then
-        global.cc.data[ph_combinator[uid].entityUID] = ph_combinator[uid]
-    else
-        global.rc.data[ph_combinator[uid].entityUID] = ph_combinator[uid]
-    end
-
-    -- push to ordered
-    if entity_name == config.CC_NAME then
-        table.insert(global.cc.ordered, ph_combinator[uid])
-    else
-        table.insert(global.rc.ordered, ph_combinator[uid])
-    end
-
-    if entity_name == config.CC_NAME then
-        -- find_chest/assembler
-        ph_combinator[uid]:find_chest()
-        ph_combinator[uid]:find_assembler()
-
-        -- update_chests (for module chest)
-        ph_combinator[uid].update_chests(new_entity.surface, ph_combinator[uid].module_chest)
-
-        -- TODO: listen to chest and assembler clone events and link them with a lookup? Should help with ups
-        -- new problem of verifying partial state
-        -- maybe delay state completion until all cloned parts information is received?
-    end
-
-    -- release key from ph
-    ph_combinator[uid] = nil
-    ph_combinator.count = ph_combinator.count - 1
-end
-
----Handler for when main entities are cloned
----@param event any Pass only cc or rc clone events
-local on_main_cloned = function(event)
-    local new_entity = event.destination
-    if not (new_entity and new_entity.valid) then return end
-
-    local entity_name = new_entity.name
-    local old_main_uid = event.source.unit_number
-    -- check for skip_clone_helper and return early
-    if entity_name == config.CC_NAME and global.cc.data[old_main_uid].skip_clone_helper then
-        global.cc.data[old_main_uid].skip_clone_helper = nil
-        return
-    end
-
-    local new_main_uid = new_entity.unit_number
-    local is_new_partial_state = false
-    -- check for partially constructed state (existing key)
-    if not ph_combinator[old_main_uid] then
-        is_new_partial_state = true
-
-        -- deepcopy old state into partial state
-        if entity_name == config.CC_NAME then
-            ph_combinator[old_main_uid] = util.deepcopy(global.cc.data[old_main_uid])
-        else
-            ph_combinator[old_main_uid] = util.deepcopy(global.rc.data[old_main_uid])
+        -- cache
+        ph, old_main_uid = get_ph('cache', old_uid, nil, current)
+        if ph then
+            update_ph(ph, old_uid, new_entity)
+            verify_ph(ph, 'cache', old_main_uid)
         end
-
-        -- remove references to old parts
-        if entity_name == config.CC_NAME then
-            ph_combinator[old_main_uid].module_chest = false
-            ph_combinator[old_main_uid].inventories.module_chest = false
-        else
-            ph_combinator[old_main_uid].output_proxy = false
-            ph_combinator[old_main_uid].control_behavior = false
-        end
-
-        ph_combinator.count = ph_combinator.count + 1
-    end
-
-    -- update references to new main
-    ph_combinator[old_main_uid].entity = new_entity
-    ph_combinator[old_main_uid].entityUID = new_main_uid
-    if entity_name == config.CC_NAME then
-        ph_combinator[old_main_uid].control_behavior = new_entity.get_or_create_control_behavior()
     else
-        ph_combinator[old_main_uid].input_control_behavior = new_entity.get_or_create_control_behavior()
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
+        update_ph(ph, old_uid, new_entity) -- TODO: Merge get and update
+        local state_type = get_state_type[new_entity_name]
+        verify_ph(ph, state_type, old_main_uid)
     end
-
-    -- last_update = event.tick
-    ph_combinator[old_main_uid].last_update = event.tick
-
-    -- verify_partial_state() if partial state is not new
-    if not is_new_partial_state then verify_partial_state(old_main_uid) end
-end
-
----Handler for when part/accesory entities are cloned
----@param event any Pass only module_chest, output_proxy clone events
-local on_part_cloned = function(event)
-    local new_entity = event.destination
-    if not (new_entity and new_entity.valid) then return end
-
-    local entity_name = new_entity.name
-    local old_uid = event.source.unit_number
-    local old_main_uid = global.main_uid_by_part_uid[old_uid]
-    local is_new_partial_state = false
-    -- check for partially constructed state (existing key)
-    if not ph_combinator[old_main_uid] then
-        is_new_partial_state = true
-
-        -- deepcopy old state into partial state
-        if entity_name == config.MODULE_CHEST_NAME then
-            ph_combinator[old_main_uid] = util.deepcopy(global.cc.data[old_main_uid])
-        else
-            ph_combinator[old_main_uid] = util.deepcopy(global.rc.data[old_main_uid])
-        end
-
-        -- remove references to old main
-        ph_combinator[old_main_uid].entity = false
-        ph_combinator[old_main_uid].entityUID = false
-        if entity_name == config.MODULE_CHEST_NAME then
-            ph_combinator[old_main_uid].control_behavior = false
-        else
-            ph_combinator[old_main_uid].input_control_behavior = false
-        end
-
-        ph_combinator.count = ph_combinator.count + 1
-    end
-
-    -- update references to new part
-    if entity_name == config.MODULE_CHEST_NAME then
-        ph_combinator[old_main_uid].module_chest = new_entity
-        ph_combinator[old_main_uid].inventories.module_chest = new_entity.get_inventory(defines.inventory.chest)
-    else
-        ph_combinator[old_main_uid].output_proxy = new_entity
-        ph_combinator[old_main_uid].control_behavior = new_entity.get_or_create_control_behavior()
-    end
-
-    -- last_update = event.tick
-    ph_combinator[old_main_uid].last_update = event.tick
-    
-    -- verify_partial_state() if partial state is not new
-    if not is_new_partial_state then verify_partial_state(old_main_uid) end
-end
-
-local on_lamp_cloned = function(event)
-    local new_entity = event.destination
-    if not (new_entity and new_entity.valid) then return end
-
-    local entity_name = new_entity.name
-    local old_uid = event.source.unit_number
-    local old_main_uid = global.main_uid_by_part_uid[old_uid]
-    local is_new_partial_state = false
-    -- check for partially constructed state (existing key)
-    if not ph_cache[old_main_uid] then
-        is_new_partial_state = true
-    end
-
-    -- verify_partial_state() if partial state is not new
-    if not is_new_partial_state then verify_partial_state(old_main_uid) end
+    -- TODO: listen to chest and assembler clone events and link them with a lookup (possible UPS optimisation)?
 end
 
 ---Called by on_nth_tick() for placeholder clean up
 ---@param event any
-local clean_up = function(event)
+local periodic_clean_up = function(event)
     if (ph_combinator.count == 0) and (ph_cache.count == 0) then return end
     local list = {ph_combinator, ph_cache}
     for i=1,#list do
@@ -314,14 +236,15 @@ local clean_up = function(event)
             end
         end
     end
+    if (ph_combinator.count == 0) and (ph_cache.count == 0) then
+        for uid in pairs(ph_timestamp) do
+            ph_timestamp[uid] = nil
+        end
+    end
 end
 
 return {
     on_load = on_load,
-    on_nth_tick = clean_up,
-
-    on_main_cloned = on_main_cloned,
-    on_part_cloned = on_part_cloned,
-    on_lamp_cloned = on_lamp_cloned,
+    on_nth_tick = periodic_clean_up,
     on_entity_cloned = on_entity_cloned
 }
