@@ -1,16 +1,112 @@
+---@alias ph_type
+---|'combinator-main'
+---|'combinator-part'
+---|'cache'
+
 local config = require "config"
 local util = require "script.util"
 local signals = require "script.signals"
 
 -- Clone placeholder - key: old main uid, value: new partial state
 -- Key should be released once the state construction is deemed complete
----@alias partial_state table
----@type {[uid]: partial_state}
-local ph_combinator, ph_cache
+local ph_combinator, ph_cache, ph_timestamp, main_uid_by_part_uid
 local on_load = function()
     ph_combinator = global.clone_placeholder.combinator
     ph_cache = global.clone_placeholder.cache
+    ph_timestamp = global.clone_placeholder.timestamp
+    main_uid_by_part_uid = global.main_uid_by_part_uid
 end
+
+--- ph_type lookup by entity name
+---@type { [string]: ph_type }
+local get_ph_type = {
+    [config.CC_NAME] = "combinator-main",
+    [config.MODULE_CHEST_NAME] = "combinator-part",
+    [config.RC_NAME] = "combinator-main",
+    [config.RC_PROXY_NAME] = "combinator-part",
+    [config.SIGNAL_CACHE_NAME] = 'cache'
+}
+
+---comment
+---@param ph_type ph_type
+---@param old_uid uid
+---@param new_entity LuaEntity
+---@return table|unknown
+local get_ph = function(ph_type, old_uid, new_entity)
+    local ph, old_main_uid
+    if ph_type ~= "cache" then
+        if ph_type == "combinator-main" then
+            old_main_uid = old_uid
+            ph = ph_combinator[old_uid]
+        elseif ph_type == "combinator-part" then
+            old_main_uid = main_uid_by_part_uid[old_uid]
+            ph = ph_combinator[old_main_uid]
+        end
+        if not ph then
+            -- create new ph
+            ph = {entity = false}
+            if new_entity.name == config.CC_NAME or new_entity.name == config.MODULE_CHEST_NAME then
+                ph.module_chest = false
+            else -- rc entities
+                ph.output_proxy = false
+            end
+            ph_combinator[old_main_uid] = ph
+            ph_combinator.count = ph_combinator.count + 1
+        end
+    else
+        old_main_uid = main_uid_by_part_uid[old_uid]
+        ph = ph_cache[old_main_uid]
+        if not ph then
+            -- create new ph
+            ph = {__entity = false}
+            -- create keys based on signals cache
+            for k in pairs(global.signals.cache[old_main_uid].__cache_entities) do
+                ph[k] = false
+            end
+            ph_cache[old_main_uid] = ph
+            ph_cache.count = ph_cache.count + 1
+        end
+    end
+    return ph
+end
+
+local update_ph = function(ph, old_uid, new_entity)
+    if new_entity.name == config.CC_NAME or new_entity.name == config.RC_NAME then
+        ph.entity = new_entity
+    elseif new_entity.name == config.MODULE_CHEST_NAME then
+        ph.module_chest = new_entity
+    elseif new_entity.name == config.RC_PROXY_NAME then
+        ph.output_proxy = new_entity
+    elseif new_entity.name == config.SIGNAL_CACHE_NAME then
+        local old_cache_state = global.signals.cache[main_uid_by_part_uid[old_uid]]
+        for lamp_type, entity in pairs(old_cache_state.__cache_entities) do
+            if entity.unit_number == old_uid then
+                ph[lamp_type] = new_entity
+                break
+            end
+        end
+    end
+end
+
+local verify_ph = function()
+    -- loop through all keys, if all entity valid then construct new state
+end
+
+---Clone-helper's handler for on_entity_cloned.
+---Should receives only cc entities
+---@param event EventData.on_entity_cloned
+local on_entity_cloned = function(event)
+    local old_uid = event.source.unit_number
+    local new_entity = event.destination
+    local ph_type = get_ph_type[new_entity.name]
+
+    local ph = get_ph(ph_type, old_uid, new_entity)
+    update_ph(ph, old_uid, new_entity)
+    verify_ph()
+end
+
+---------------------------------
+---------------------------------
 
 ---Called everytime after the state for an entity part is constructed: on_main_cloned() on_part_cloned()
 ---@param uid uid for old main entity
@@ -31,9 +127,9 @@ local verify_partial_state = function(uid)
 
     -- push new uids to global.main_uid_by_part_uid
     if entity_name == config.CC_NAME then
-        global.main_uid_by_part_uid[ph_combinator[uid].module_chest.unit_number] = ph_combinator[uid].entityUID
+        main_uid_by_part_uid[ph_combinator[uid].module_chest.unit_number] = ph_combinator[uid].entityUID
     else
-        global.main_uid_by_part_uid[ph_combinator[uid].output_proxy.unit_number] = ph_combinator[uid].entityUID
+        main_uid_by_part_uid[ph_combinator[uid].output_proxy.unit_number] = ph_combinator[uid].entityUID
     end
         
     -- push to data using new entity uid as
@@ -193,24 +289,28 @@ end
 ---@param event any
 local clean_up = function(event)
     if (ph_combinator.count == 0) and (ph_cache.count == 0) then return end
-    for k, v in pairs(ph_combinator) do
-        if k ~= "count" then
-            if v.last_update < event.tick then
-                game.print("Partially cloned entity found. Entity will be destroyed.")
-                log({"", "Entities destroyed for key: ", k})
-                if v.entity and v.entity.valid then
-                    log(v.entity.name)
-                    v.entity.destroy()
+    local list = {ph_combinator, ph_cache}
+    for i=1,#list do
+        local ph_list = list[i]
+        if ph_list.count > 0 then
+            for k, ph in pairs(ph_list) do
+                if k ~= "count" then
+                    for _, new_entity in pairs(ph) do
+                        if new_entity and new_entity.valid then
+                            local uid = new_entity.unit_number
+                            -- if entity is just cloned (same tick?) then ignore ph
+                            if ph_timestamp[uid] == event.tick then goto next_ph end
+
+                            log({"", "Partially cloned entity destroyed: ", new_entity.name, new_entity.unit_number})
+                            game.print({"", "[Crafting Combinator Xeraph's Fork]", " Partially cloned entity destroyed."})
+                            new_entity.destroy()
+                            ph_timestamp[uid] = nil
+                        end
+                    end
+                    ph_list[k] = nil
+                    ph_list.count = ph_list.count - 1
                 end
-                if v.module_chest and v.module_chest.valid then
-                    log(v.module_chest.name)
-                    v.module_chest.destroy()
-                end
-                if v.output_proxy and v.output_proxy.valid then
-                    log(v.output_proxy.name)
-                    v.output_proxy.destroy()
-                end
-                ph_combinator[k] = nil
+                ::next_ph::
             end
         end
     end
@@ -222,5 +322,6 @@ return {
 
     on_main_cloned = on_main_cloned,
     on_part_cloned = on_part_cloned,
-    on_lamp_cloned = on_lamp_cloned
+    on_lamp_cloned = on_lamp_cloned,
+    on_entity_cloned = on_entity_cloned
 }

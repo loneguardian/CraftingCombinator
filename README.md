@@ -2,7 +2,7 @@
 This is a fork to theRustyKnife's [Crafting Combinator mod v0.16.3](https://mods.factorio.com/mod/crafting_combinator).
 
 # Migration #
-This fork is **not compatible** with the original mod. If you wish to migrate your current save to this fork you can do the following:
+This fork is **not compatible** with the original mod. If you wish to migrate your current save (from original mod to this fork) you can do the following:
 1. Follow the [remote-data migration procedures](https://github.com/loneguardian/crafting_combinator_xeraph_migration) using the [migration bridge mod](https://mods.factorio.com/mod/crafting_combinator_xeraph_migration). **OR**
 2. Load this fork over your existing save. WARNING: All combinators will be migrated with default settings and data state.
 

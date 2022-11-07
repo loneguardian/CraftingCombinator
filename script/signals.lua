@@ -258,7 +258,7 @@ function _M.get_highest(entity, circuit_id, update_count, entityUID)
 		if highest == nil or signal.count > highest.count then highest = signal; end
 	end
 	
-	cache.highest.valid = true ---? I can assign entity validity? or is it just a state?
+	cache.highest.valid = true
 	
 	if highest then
 		cache.highest.value = highest

@@ -44,7 +44,7 @@ end
 
 local function init_global()
 	global.delayed_blueprint_tag_state = {}
-	global.clone_placeholder = {combinator = {count = 0}, cache = {count = 0}}
+	global.clone_placeholder = {combinator = {count = 0}, cache = {count = 0}, timestamp = {}}
 	global.main_uid_by_part_uid = {}
 end
 
@@ -88,15 +88,23 @@ local function on_built(event)
 	blueprint.handle_event(event)
 end
 
+--- Lookup table for cc entities.
+--- @type { [string]: boolean } Value is always true
+local is_cc_entities = {
+	[config.CC_NAME] = true,
+	[config.RC_NAME] = true,
+	[config.MODULE_CHEST_NAME] = true,
+	[config.RC_PROXY_NAME] = true,
+	[config.SIGNAL_CACHE_NAME] = true
+}
+
 local function on_cloned(event)
 	local entity = event.destination
 	if not (entity and entity.valid) then return end
 
-	-- main or part
-	if entity.name == config.CC_NAME or entity.name == config.RC_NAME then
-		clone_helper.on_main_cloned(event)
-	elseif entity.name == config.MODULE_CHEST_NAME or entity.name == config.RC_PROXY_NAME then
-		clone_helper.on_part_cloned(event)
+	-- cc entities - cc, rc, module chest, output proxy, lamp
+	if is_cc_entities[entity.name] then
+		clone_helper.on_entity_cloned(event)
 	end
 
 	-- assembler and containers
