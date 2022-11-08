@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: ????
+  Bugfixes:
+    - Fixes possible bug caused by housekeeping module breaking references to main_uid lookup table
   Changes:
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0

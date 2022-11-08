@@ -22,31 +22,6 @@ local get_all_cc_entities = function ()
     return entities
 end
 
-local check_uid_mismatch = function()
-    local count_mismatch_cached_uid = 0
-    local count_mismatch_key = 0
-    for k, v in pairs(global.cc.data) do
-        if v.entity and v.entity.valid then
-            if k ~= v.entity.unit_number then
-                count_mismatch_key = count_mismatch_key + 1
-            end
-            if v.entityUID ~= v.entity.unit_number then
-                count_mismatch_cached_uid = count_mismatch_cached_uid + 1
-            end
-        end
-    end
-
-    game.print({"crafting_combinator.chat-message", {"", "check_uid ", "uid mismatch: ", count_mismatch_key, " | cached uid mismatch: ", count_mismatch_cached_uid}})
-end
-
-local cleanup_delayed_bp_state = function()
-    if global.delayed_blueprint_tag_state then
-        -- old structure depreciated
-        global.delayed_blueprint_tag_state.is_queued = nil
-        global.delayed_blueprint_tag_state.data = nil
-    end
-end
-
 local function cleanup()
     local count = {
         invalid = {
@@ -109,8 +84,13 @@ local function cleanup()
     }
 
     -- global data cleanup
+
     log({"", "Old main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
-    global.main_uid_by_part_uid = {} -- reset main_uid_by_part_uid
+    -- reset main_uid_by_part_uid
+    for k in pairs(global.main_uid_by_part_uid) do
+        global.main_uid_by_part_uid[k] = nil
+    end
+
     for entity_name, map in pairs(proc_data) do
         if not map.check_global then goto next_proc end
         -- find invalid entity entries
@@ -267,7 +247,6 @@ local function cc_command(command)
 end
 
 local h = {
-    --cleanup_delayed_bp_state = cleanup_delayed_bp_state,
     cleanup = cleanup,
     cc_command = cc_command,
     get_all_cc_entities = get_all_cc_entities
