@@ -102,6 +102,9 @@ local function on_cloned(event)
 	-- cc entities - cc, rc, module chest, output proxy, lamp
 	if is_cc_entities[entity.name] then
 		clone_helper.on_entity_cloned(event)
+		if not (entity.valid) then return end
+		-- entity can be destroyed during clone_helper handling due to duplicated entity cloning per old state
+		-- only one partially cloned old state can exist at a time
 	end
 
 	-- assembler and containers
@@ -112,6 +115,10 @@ local function on_cloned(event)
 		cc_control.update_chests(entity.surface, entity);
 	end
 end
+-- Note: 2022-11-08
+-- Currently clone events are handled under the assumption that no existing cc entities are replaced (clear_destination_entities = false)
+-- At the time of writing, there is no API that notifies the clearing of entities due to area/brush clone
+-- on_entity_cloned event, being the first event received for cloning, is only fired after cleared entity has become invalid
 
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
@@ -223,7 +230,7 @@ script.on_event(defines.events.on_tick, function(event)
 end)
 
 script.on_nth_tick(600, function(event)
-	-- clean up partially cloned entities?
+	-- clean up partially cloned entities
 	clone_helper.on_nth_tick(event)
 end)
 
@@ -249,19 +256,14 @@ script.on_event(defines.events.on_entity_settings_pasted, function(event)
 end)
 
 -- filter for built and destroyed events
-local filter_built_destroyed = {}
-
--- filter: cc or rc (main)
-table.insert(filter_built_destroyed, {filter = "name", name = config.CC_NAME})
-table.insert(filter_built_destroyed, {filter = "name", name = config.RC_NAME})
-
--- filter: part
-table.insert(filter_built_destroyed, {filter = "name", name = config.MODULE_CHEST_NAME})
-table.insert(filter_built_destroyed, {filter = "name", name = config.RC_PROXY_NAME})
-table.insert(filter_built_destroyed, {filter = "name", name = config.SIGNAL_CACHE_NAME})
-
--- filter: assembling-machine
-table.insert(filter_built_destroyed, {filter = "type", type = 'assembling-machine'})
+local filter_built_destroyed = {
+	{filter = "name", name = config.CC_NAME},
+	{filter = "name", name = config.RC_NAME},
+	{filter = "name", name = config.MODULE_CHEST_NAME},
+	{filter = "name", name = config.RC_PROXY_NAME},
+	{filter = "name", name = config.SIGNAL_CACHE_NAME},
+	{filter = "type", type = 'assembling-machine'}
+}
 
 -- filter: containers
 for container, _ in pairs(util.CONTAINER_TYPES) do
