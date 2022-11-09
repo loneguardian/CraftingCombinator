@@ -45,10 +45,11 @@ local get_state_type = {
 ---Get or create method for ph.
 ---@param ph_type ph_type
 ---@param old_uid uid
----@param new_entity LuaEntity
+---@param new_entity_name string
+---@param current uint
 ---@return table ph if found
 ---@return uid old_main_uid associated old_main_uid from main_uid_by_part_uid lookup
-local get_ph = function(ph_type, old_uid, new_entity, current)
+local get_ph = function(ph_type, old_uid, new_entity_name, current)
     local ph, old_main_uid
     if ph_type ~= "cache" then
         if ph_type == "combinator-main" then
@@ -59,7 +60,6 @@ local get_ph = function(ph_type, old_uid, new_entity, current)
             ph = ph_combinator[old_main_uid]
         end
         if not ph then
-            local new_entity_name = new_entity.name
             -- create new ph
             ph = {entity = false}
             if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
@@ -198,7 +198,7 @@ local on_entity_cloned = function(event)
 
     -- if main, it will trigger combinator + cache ph
     if ph_type == 'combinator-main' then
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
         update_ph(ph, new_entity, old_uid, old_main_uid)
         local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)
@@ -210,7 +210,7 @@ local on_entity_cloned = function(event)
             verify_ph(ph, 'cache', old_main_uid)
         end
     else
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
         update_ph(ph, new_entity, old_uid, old_main_uid)
         local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)

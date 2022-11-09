@@ -103,8 +103,8 @@ local function on_cloned(event)
 	if is_cc_entities[entity.name] then
 		clone_helper.on_entity_cloned(event)
 		if not (entity.valid) then return end
-		-- entity can be destroyed during clone_helper handling due to duplicated entity cloning per old state
-		-- only one partially cloned old state can exist at a time
+		-- destination entity will be destroyed during clone_helper handling if it is a redundant component
+		-- only one old state can exist as a partially cloned state at a time
 	end
 
 	-- assembler and containers
@@ -116,9 +116,9 @@ local function on_cloned(event)
 	end
 end
 -- Note: 2022-11-08
--- Currently clone events are handled under the assumption that no existing cc entities are replaced (clear_destination_entities = false)
+-- Currently clone events are handled under the assumption that no existing cc entities are replaced by area/brush clone (clear_destination_entities = false)
 -- At the time of writing, there is no API that notifies the clearing of entities due to area/brush clone
--- on_entity_cloned event, being the first event received for cloning, is only fired after cleared entity has become invalid
+-- on_entity_cloned event, despite being the first event received for cloning, is only fired after cleared entity has become invalid
 
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
@@ -266,7 +266,7 @@ local filter_built_destroyed = {
 }
 
 -- filter: containers
-for container, _ in pairs(util.CONTAINER_TYPES) do
+for container in pairs(util.CONTAINER_TYPES) do
 	table.insert(filter_built_destroyed, {filter = "type", type = container})
 end
 
