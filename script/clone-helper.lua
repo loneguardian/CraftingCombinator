@@ -15,7 +15,15 @@ local on_load = function()
     main_uid_by_part_uid = global.main_uid_by_part_uid
 end
 
---- ph_type lookup by entity name
+--- ph key lookup, used in update_ph()
+local get_ph_key = {
+    [config.CC_NAME] = "entity",
+    [config.RC_NAME] = "entity",
+    [config.MODULE_CHEST_NAME] = "module_chest",
+    [config.RC_PROXY_NAME] = "output_proxy"
+}
+
+--- ph_type lookup by entity name, used in get_ph()
 ---@type { [string]: ph_type }
 local get_ph_type = {
     [config.CC_NAME] = "combinator-main",
@@ -26,7 +34,6 @@ local get_ph_type = {
 }
 
 --- state type lookup by entity name
----@type { [string]: ph_type }
 local get_state_type = {
     [config.CC_NAME] = "cc",
     [config.MODULE_CHEST_NAME] = "cc",
@@ -35,12 +42,14 @@ local get_state_type = {
     [config.SIGNAL_CACHE_NAME] = "cache"
 }
 
----comment
+---Get or create method for ph.
 ---@param ph_type ph_type
 ---@param old_uid uid
----@param new_entity LuaEntity
----@return table|unknown
-local get_ph = function(ph_type, old_uid, new_entity, current)
+---@param new_entity_name string
+---@param current uint
+---@return table ph if found
+---@return uid old_main_uid associated old_main_uid from main_uid_by_part_uid lookup
+local get_ph = function(ph_type, old_uid, new_entity_name, current)
     local ph, old_main_uid
     if ph_type ~= "cache" then
         if ph_type == "combinator-main" then
@@ -51,7 +60,6 @@ local get_ph = function(ph_type, old_uid, new_entity, current)
             ph = ph_combinator[old_main_uid]
         end
         if not ph then
-            local new_entity_name = new_entity.name
             -- create new ph
             ph = {entity = false}
             if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
@@ -81,34 +89,31 @@ local get_ph = function(ph_type, old_uid, new_entity, current)
             end
         end
     end
-    ::exit::
     return ph, old_main_uid
 end
 
-local update_ph = function(ph, old_uid, new_entity)
-    local new_entity_name = new_entity.name
-    if new_entity_name == config.CC_NAME or new_entity_name == config.RC_NAME then
-        ph.entity = new_entity
-    elseif new_entity_name == config.MODULE_CHEST_NAME then
-        ph.module_chest = new_entity
-    elseif new_entity_name == config.RC_PROXY_NAME then
-        ph.output_proxy = new_entity
-    elseif new_entity_name == config.SIGNAL_CACHE_NAME then
-        local old_cache_state = global.signals.cache[main_uid_by_part_uid[old_uid]]
-        for lamp_type, entity in pairs(old_cache_state.__cache_entities) do
-            if entity.unit_number == old_uid then
-                ph[lamp_type] = new_entity
-                break
-            end
-        end
+local update_ph_entity = function(ph, key, new_entity)
+    if ph[key] == false then
+        ph[key] = new_entity
+    else
+        game.print({"crafting_combinator.chat-message", {"", "Duplicate destination entity detected. Newer entity discarded."}})
+        log({"", "Duplicate destination entity deleted ", new_entity.name, new_entity.unit_number})
+        new_entity.destroy()
     end
 end
 
-local update_main_by_part_lookup = function(ph)
-    local main_uid = ph.entity.unit_number
-    for k, part in pairs(ph) do
-        if not(k == "entity") then
-            global.main_uid_by_part_uid[part.unit_number] = main_uid
+local update_ph = function(ph, new_entity, old_uid, old_main_uid)
+    local new_entity_name = new_entity.name
+    local ph_key = get_ph_key[new_entity_name]
+    if ph_key then
+        update_ph_entity(ph, ph_key, new_entity)
+    elseif new_entity_name == config.SIGNAL_CACHE_NAME then
+        local old_cache_state = global.signals.cache[old_main_uid]
+        for lamp_type, entity in pairs(old_cache_state.__cache_entities) do
+            if entity.unit_number == old_uid then
+                update_ph_entity(ph, lamp_type, new_entity)
+                break
+            end
         end
     end
 end
@@ -118,7 +123,6 @@ local cleanup_ph = function(old_main_uid, clone_ph)
     clone_ph.count = clone_ph.count - 1
     ph_timestamp[old_main_uid] = nil
 end
-
 
 ---Verify placeholder for clone destination information for all components,
 ---if all present then contruct/clone new state
@@ -167,7 +171,14 @@ local verify_ph = function(ph, state_type, old_main_uid)
         end
         global.signals.cache[new_main_uid] = state
     end
-    update_main_by_part_lookup(ph)
+
+    -- update main_uid_by_part_uid
+    for k, part in pairs(ph) do
+        if not(k == "entity") then
+            global.main_uid_by_part_uid[part.unit_number] = new_main_uid
+        end
+    end
+
     if state_type == "cache" then
         cleanup_ph(old_main_uid, ph_cache)
     else
@@ -176,7 +187,7 @@ local verify_ph = function(ph, state_type, old_main_uid)
 end
 
 ---Clone-helper's handler for on_entity_cloned.
----Should receives only cc entities
+---Should receive only cc entities
 ---@param event EventData.on_entity_cloned
 local on_entity_cloned = function(event)
     local old_uid = event.source.unit_number ---@type uint
@@ -185,25 +196,26 @@ local on_entity_cloned = function(event)
     local ph_type = get_ph_type[new_entity_name]
     local current = event.tick
 
-    -- if main, it will trigger its own ph + cache ph
+    -- if main, it will trigger combinator + cache ph
     if ph_type == 'combinator-main' then
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
-        update_ph(ph, old_uid, new_entity)
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
+        update_ph(ph, new_entity, old_uid, old_main_uid)
         local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)
 
         -- cache
         ph, old_main_uid = get_ph('cache', old_uid, nil, current)
         if ph then
-            update_ph(ph, old_uid, new_entity)
+            update_ph(ph, new_entity, old_uid, old_main_uid)
             verify_ph(ph, 'cache', old_main_uid)
         end
     else
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity, current)
-        update_ph(ph, old_uid, new_entity) -- TODO: Merge get and update
+        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
+        update_ph(ph, new_entity, old_uid, old_main_uid)
         local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)
     end
+    -- TODO: Merge get and update
     -- TODO: listen to chest and assembler clone events and link them with a lookup (possible UPS optimisation)?
 end
 
@@ -217,28 +229,21 @@ local periodic_clean_up = function(event)
         if ph_list.count > 0 then
             for k, ph in pairs(ph_list) do
                 if k ~= "count" then
+                    -- if ph is just cloned (same tick) then ignore ph
+                    if ph_timestamp[k] == event.tick then goto next_ph end
                     for _, new_entity in pairs(ph) do
                         if new_entity and new_entity.valid then
-                            local uid = new_entity.unit_number
-                            -- if entity is just cloned (same tick?) then ignore ph
-                            if ph_timestamp[uid] == event.tick then goto next_ph end
-
                             log({"", "Partially cloned entity destroyed: ", new_entity.name, new_entity.unit_number})
-                            game.print({"", "[Crafting Combinator Xeraph's Fork]", " Partially cloned entity destroyed."})
+                            game.print({"crafting_combinator.chat-message", {"", "Partially cloned entity destroyed."}})
                             new_entity.destroy()
-                            ph_timestamp[uid] = nil
                         end
                     end
+                    ph_timestamp[k] = nil
                     ph_list[k] = nil
                     ph_list.count = ph_list.count - 1
                 end
                 ::next_ph::
             end
-        end
-    end
-    if (ph_combinator.count == 0) and (ph_cache.count == 0) then
-        for uid in pairs(ph_timestamp) do
-            ph_timestamp[uid] = nil
         end
     end
 end
