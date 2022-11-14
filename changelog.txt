@@ -3,6 +3,13 @@ Version: 0.2.1
 Date: ????
   Bugfixes:
     - Fixes possible bug that can happen when housekeeping module breaks lookup table reference (https://github.com/loneguardian/CraftingCombinator/commit/38e779f4361dc6cad7e18313a3ffc0825bda4dbb)
+  Changes:
+    - Crafting combinators are no longer fast-replaceable with constant combinators (and vice versa)
+      - This should reduce unwanted behaviors due to fast-replace such as:
+         - Crafting combinators leaving behind orphaned entities
+         - Invalid entity or control behavior object (https://mods.factorio.com/mod/crafting_combinator/discussion/6210fc02f30d3ff351b5cdbc)
+      - The premise behind the change is that constant combinators and crafting combinators are functionally different, hence it doesn't make sense to allow fast-replace mechanics between them.
+      - Feedback on this change is welcome.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2022-11-07
