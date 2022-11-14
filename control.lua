@@ -148,7 +148,8 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 			end
 		end
 		if event_name == defines.events.on_entity_died
-		or event_name == defines.events.script_raised_destroy then
+		or event_name == defines.events.script_raised_destroy
+		or event_name == defines.events.on_robot_mined_entity then -- robot upgrade/decons event - should never happen
 			cc_control.update_chests(entity_surface, module_chest, true)
 			module_chest.destroy()
 		end

@@ -10,7 +10,9 @@ cc.icon = MOD_PATH .. '/graphics/icon-crafting-combinator.png'
 cc.icon_size = 32
 cc.item_slot_count = 3
 cc.minable.result = cc.name
-table.insert(cc.flags, 'not-deconstructable')
+cc.fast_replaceable_group = ""
+cc.flags[#cc.flags + 1] = 'not-deconstructable'
+cc.flags[#cc.flags + 1] = 'not-upgradable'
 
 for _, image in pairs(cc.sprites) do
 	local im = image.layers[1]

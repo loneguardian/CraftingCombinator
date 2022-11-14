@@ -161,6 +161,7 @@ local verify_ph = function(ph, state_type, old_main_uid)
         global.rc.data[new_main_uid] = state
         table.insert(global.rc.ordered, state)
     elseif state_type == "cache" then
+        ---@type SignalsCacheState
         local state = util.deepcopy(global.signals.cache[old_main_uid])
         state.__entity = ph.entity
         for lamp_type, lamp in pairs(ph) do
@@ -194,13 +195,13 @@ local on_entity_cloned = function(event)
     local new_entity = event.destination
     local new_entity_name = new_entity.name
     local ph_type = get_ph_type[new_entity_name]
+    local state_type = get_state_type[new_entity_name]
     local current = event.tick
 
     -- if main, it will trigger combinator + cache ph
     if ph_type == 'combinator-main' then
         local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
         update_ph(ph, new_entity, old_uid, old_main_uid)
-        local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)
 
         -- cache
@@ -212,7 +213,6 @@ local on_entity_cloned = function(event)
     else
         local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
         update_ph(ph, new_entity, old_uid, old_main_uid)
-        local state_type = get_state_type[new_entity_name]
         verify_ph(ph, state_type, old_main_uid)
     end
     -- TODO: Merge get and update
@@ -220,7 +220,7 @@ local on_entity_cloned = function(event)
 end
 
 ---Called by on_nth_tick() for placeholder clean up
----@param event any
+---@param event NthTickEventData
 local periodic_clean_up = function(event)
     if (ph_combinator.count == 0) and (ph_cache.count == 0) then return end
     local list = {ph_combinator, ph_cache}
