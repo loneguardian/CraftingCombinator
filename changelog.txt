@@ -1,6 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.1
+Version: 0.2.2
 Date: ????
+  Changes:
+---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2022-11-14
   Bugfixes:
     - Fixes possible bug that can happen when housekeeping module breaks lookup table reference (https://github.com/loneguardian/CraftingCombinator/commit/38e779f4361dc6cad7e18313a3ffc0825bda4dbb)
   Changes:

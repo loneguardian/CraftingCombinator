@@ -1,6 +1,15 @@
 # Fork Notice #
 This is a fork to theRustyKnife's [Crafting Combinator mod v0.16.3](https://mods.factorio.com/mod/crafting_combinator).
 
+# What's New? #
+- **New sticky behavior: Craft N times before switch** - Is your cc build plagued by the flip-flop behavior due to buffers and signal fluctuations? You can now force a machine to stay on a recipe for a certain amount of craft cycles before switching.
+- **Input buffer size setting** - You can now control the amount of ingredients placed into the machine during recipe switch.
+- **Blueprints and ghosts** now carry combinator settings.
+- **Cloning** is now handled - You can now use cc/rc's on Space Exploration spaceships
+- Bugfixes and optimization.
+
+Refer to v0.1.4 changelog for details.
+
 # Migration #
 This fork is **not compatible** with the original mod. If you wish to migrate your current save (from original mod to this fork) you can do the following:
 1. Follow the [remote-data migration procedures](https://github.com/loneguardian/crafting_combinator_xeraph_migration) using the [migration bridge mod](https://mods.factorio.com/mod/crafting_combinator_xeraph_migration). **OR**
