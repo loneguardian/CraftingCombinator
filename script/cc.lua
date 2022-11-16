@@ -265,9 +265,26 @@ function params:clear()
 	for i = 1, #self.data do self.data[i] = nil end
 end
 
+local check_entities = function(state)
+	local signals_cache = global.signals.cache[state.entityUID]
+	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
+		log({"", "Signal cache dropped due to invalid entity(s) ", state.entityUID})
+		signals.cache.drop(state.entityUID)
+	end
+
+	if state.entity and state.entity.valid
+	and state.module_chest and state.module_chest.valid then
+		return true
+	else
+		log({"", "CC state destroyed due to invalid entity(s) ", state.entityUID})
+		_M.destroy(state.entityUID)
+	end
+end
+
 ---Method to update CC state
 ---@param forced boolean Forced update clears control_behavior signals.
 function _M:update(forced, current_tick)
+	if not check_entities(self) then return end
 	if forced then
 		params:clear()
 		self.control_behavior.parameters = params.data

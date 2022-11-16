@@ -30,9 +30,8 @@ local config = require 'config'
 
 local _M = {}
 
-
 _M.EVERYTHING = {type = 'virtual', name = 'signal-everything'}
-
+local LAMP_TYPES = {"highest", "highest_count", "highest_present", "signal_present"}
 
 local cache_mt = {
 	__index = function(self, key)
@@ -75,6 +74,17 @@ end
 
 function _M.on_load()
 	for _, cache in pairs(global.signals.cache) do setmetatable(cache, cache_mt); end
+end
+
+---@param state SignalsCacheState
+---@return boolean|nil true if all entities are valid
+function _M.check_signal_cache_entities(state)
+	if not state then return end
+	for i=1,#LAMP_TYPES do
+		local lamp = state.__cache_entities[LAMP_TYPES[i]]
+		if lamp and not lamp.valid then return end
+	end
+	return true
 end
 
 ---Method to migrate individual signal cache state into the game
@@ -149,9 +159,8 @@ function _M.verify(uid, state)
 	local combinator_entity = state.__entity
 	if combinator_entity and combinator_entity.valid then
 			-- check lamps and update main_uid_by_part_uid
-			local lamp_types = {"highest", "highest_count", "highest_present", "signal_present"}
-			for i= 1, #lamp_types do
-			local lamp_type = lamp_types[i]
+			for i= 1, #LAMP_TYPES do
+			local lamp_type = LAMP_TYPES[i]
 				if rawget(state, lamp_type) then
 					local lamp_cb = state[lamp_type].__cb
 					local lamp_entity = state.__cache_entities[lamp_type]
