@@ -152,6 +152,21 @@ function _M.on_module_chest_cancel_decon(entity)
 	combinator:update()
 end
 
+-- this function should only be called when something goes wrong - state is not found in global data
+function _M.on_key_not_found(key)
+	local entities
+	for _, v in pairs(game.surfaces) do
+		entities = v.find_entities_filtered({name = config.CC_NAME})
+	end
+	for i=1, #entities do
+		if entities[i].unit_number == key then
+			_M.create(entities[i])
+			break
+		end
+	end
+	return rawget(global.cc.data, key)
+end
+
 ---Destroy method for cc state
 ---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
