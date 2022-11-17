@@ -362,3 +362,7 @@ script.on_event(defines.events.on_gui_click, function(event)
 		end
 	end
 end)
+
+if script.active_mods.testorio then
+	require 'test/main'
+end
