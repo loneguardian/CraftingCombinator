@@ -95,6 +95,7 @@ local is_cc_entities = {
 	[config.SIGNAL_CACHE_NAME] = true
 }
 
+---@param event EventData.on_entity_cloned
 local function on_cloned(event)
 	local entity = event.destination
 	if not (entity and entity.valid) then return end
@@ -120,6 +121,7 @@ end
 -- At the time of writing, there is no API that notifies the clearing of entities due to area/brush clone
 -- on_entity_cloned event, despite being the first event received for cloning, is only fired after cleared entity has become invalid
 
+---@param event EventData.on_entity_died | EventData.on_player_mined_entity | EventData.on_robot_mined_entity | EventData.script_raised_destroy
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
@@ -136,6 +138,7 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	end
 
 	if entity_name == config.CC_NAME then
+		---@type uid
 		local uid = entity.unit_number
 		local module_chest = global.cc.data[uid].module_chest
 		local module_chest_uid = module_chest.unit_number
