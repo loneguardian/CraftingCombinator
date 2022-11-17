@@ -1,37 +1,3 @@
----@alias unit_number uint Unique ID for entity
----@alias uid unit_number Unique ID for entity
-
----@class AssemblerInventories
----@field input LuaInventory?
----@field output LuaInventory?
-
----@class CcInventories
----@field module_chest LuaInventory?
----@field chest LuaInventory?
----@field assembler AssemblerInventories
-
----@class CcState
----@field entityUID uid Combinator entity's uid
----@field entity LuaEntity Combinator entity
----@field control_behavior LuaControlBehavior? Combinator's control behavior
----@field module_chest LuaEntity Module chest entity associated to this CC
----@field assembler LuaEntity Assembler entity associated to this CC
----@field settings CcSettings CC settings table
----@field inventories CcInventories
----@field items_to_ignore table ???
----@field last_flying_text_tick integer
----@field enabled boolean
----@field last_recipe LuaRecipe|boolean|nil
----@field last_assembler_recipe LuaRecipe|boolean|nil
----@field read_mode_cb boolean
----@field sticky boolean
----@field allow_sticky boolean
----@field unstick_at_tick integer
----@field update function Method to update CC state
----@field find_assembler function
----@field find_chest function
-
-
 local util = require 'script.util'
 local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'

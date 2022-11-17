@@ -1,38 +1,7 @@
----@class CacheEntities
----@field highest LuaEntity
----@field highest_present LuaEntity
----@field highest_count LuaEntity
----@field signal_present LuaEntity
-
----@class CacheCb
----@field _cb LuaControlBehavior
----@field valid boolean
----@field value CacheValue
-
----@class CacheValue
----@field signal CacheSignal
-
----@class CacheSignal
----@field type string
----@field name string
-
----@class SignalsCacheState
----@field __entity LuaEntity
----@field __circuit_id defines.circuit_connector_id
----@field __cache_entities CacheEntities
----@field highest CacheCb
----@field highest_present CacheCb
----@field highest_count CacheCb
----@field signal_present CacheCb
-
 local config = require 'config'
-
-
 local _M = {}
 
-
 _M.EVERYTHING = {type = 'virtual', name = 'signal-everything'}
-
 
 local cache_mt = {
 	__index = function(self, key)
@@ -110,6 +79,7 @@ function _M.migrate_lamp(lamp)
 	local cache = _M.cache.get(combinator_entity, circuit_id, combinator_entity.unit_number)
 
 	-- get cb
+	---@type LuaLampControlBehavior
 	local cb = lamp.get_control_behavior()
 	if not (cb and cb.valid) then return end
 
@@ -176,7 +146,7 @@ _M.cache = {}
 ---@param entity LuaEntity
 ---@param circuit_id defines.circuit_connector_id.combinator_input
 ---@param entityUID uid
----@return table cache_state Signals cache state for the cc/rc state
+---@return SignalsCacheState cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
 	---@type SignalsCacheState
 	local cache = global.signals.cache[entityUID]
