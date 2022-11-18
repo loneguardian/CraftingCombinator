@@ -1,0 +1,9 @@
+{
+	"name": "crafting_combinator_xeraph_test",
+	"version": "0.1.0",
+	"factorio_version": "1.1",
+	"title": "Crafting Combinator Xeraph's Fork - Test Mod",
+	"author": "Xeraph",
+	"description": "Test mod for Crafting Combinator Xeraph's Fork",
+	"dependencies": ["base", "testorio"]
+}
