@@ -46,16 +46,12 @@
 ---@field signal_present LuaEntity
 
 ---@class CacheCb
----@field _cb LuaControlBehavior
+---@field __cb LuaLampControlBehavior
 ---@field valid boolean
 ---@field value CacheValue
 
 ---@class CacheValue
----@field signal CacheSignal
-
----@class CacheSignal
----@field type string
----@field name string
+---@field signal SignalID
 
 ---@class SignalsCacheState
 ---@field __entity LuaEntity

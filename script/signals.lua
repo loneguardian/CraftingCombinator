@@ -79,8 +79,7 @@ function _M.migrate_lamp(lamp)
 	local cache = _M.cache.get(combinator_entity, circuit_id, combinator_entity.unit_number)
 
 	-- get cb
-	---@type LuaLampControlBehavior
-	local cb = lamp.get_control_behavior()
+	local cb = lamp.get_control_behavior() --[[@as LuaLampControlBehavior]]
 	if not (cb and cb.valid) then return end
 
 	local lamp_type
