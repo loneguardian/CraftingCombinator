@@ -363,6 +363,6 @@ script.on_event(defines.events.on_gui_click, function(event)
 	end
 end)
 
-if script.active_mods.testorio then
-	require 'test/main'
+if script.active_mods.testorio and script.active_mods.crafting_combinator_xeraph_test then
+	require "__crafting_combinator_xeraph_test__.main"
 end
