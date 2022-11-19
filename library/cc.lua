@@ -1,18 +1,24 @@
 ---@meta
 ---@diagnostic disable
 
+---@alias uint64 integer
 ---@alias uint integer
 ---@alias unit_number uint
 ---@alias uid unit_number
 
 -- Global
 
+---@type CraftingCombinatorGlobal
+__crafting_combinator_xeraph__global = nil
+---@type CraftingCombinatorGlobal
+__crafting_combinator_xeraph_test__global = nil
+
 ---@class GlobalCc
----@field data CcState
+---@field data table<uid, CcState>
 ---@field ordered table<uint, CcState>
 
 ---@class GlobalRc
----@field data RcState
+---@field data table<uid, RcState>
 ---@field ordered table<uint, RcState>
 
 ---@class GlobalSignals
