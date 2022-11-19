@@ -1,6 +1,3 @@
----@type CraftingCombinatorGlobal
-global = nil
-
 require 'script.bootstrap'
 
 local config = require 'config'
