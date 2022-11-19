@@ -5,6 +5,27 @@
 ---@alias unit_number uint
 ---@alias uid unit_number
 
+-- Global
+
+---@class GlobalCc
+---@field data CcState
+---@field ordered table<uint, CcState>
+
+---@class GlobalRc
+---@field data RcState
+---@field ordered table<uint, RcState>
+
+---@class GlobalSignals
+---@field cache table<uid, SignalsCacheState>
+
+---@class CraftingCombinatorGlobal
+---@field delayed_blueprint_tag_state table
+---@field cc GlobalCc
+---@field rc GlobalRc
+---@field signals GlobalSignals
+---@field clone_placeholder table
+---@field main_uid_by_part_uid table<uid, uid>
+
 -- CC State
 
 ---@class AssemblerInventories
@@ -15,6 +36,19 @@
 ---@field module_chest LuaInventory?
 ---@field chest LuaInventory?
 ---@field assembler AssemblerInventories
+
+---@class CcSettings
+---@field chest_position integer
+---@field mode string
+---@field wait_for_output_to_clear boolean
+---@field discard_items boolean
+---@field discard_fluids boolean
+---@field empty_inserters boolean
+---@field read_recipe boolean
+---@field read_speed boolean
+---@field read_machine_status boolean
+---@field craft_until_zero boolean
+---@field craft_n_before_switch integer
 
 ---@class CcState
 ---@field entityUID uid Combinator entity's uid

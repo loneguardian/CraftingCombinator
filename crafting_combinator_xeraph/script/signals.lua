@@ -158,7 +158,6 @@ _M.cache = {}
 ---@param entityUID uid
 ---@return SignalsCacheState cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
-	---@type SignalsCacheState
 	local cache = global.signals.cache[entityUID]
 	if not cache then
 		cache = setmetatable({
@@ -181,7 +180,6 @@ function _M.cache.reset(entity, name) -- not used? to reset already existing lam
 end
 
 function _M.cache.drop(unit_number)
-	---@type SignalsCacheState
 	local cache = global.signals.cache[unit_number]
 	if cache then
 		for _, e in pairs(cache.__cache_entities) do

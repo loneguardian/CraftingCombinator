@@ -1,3 +1,6 @@
+---@type CraftingCombinatorGlobal
+global = nil
+
 require 'script.bootstrap'
 
 local config = require 'config'
@@ -23,6 +26,10 @@ end
 
 local function on_load(forced)
 	if not forced and next(late_migrations.__migrations) ~= nil then return; end
+	cc_control.on_load()
+	rc_control.on_load()
+	signals.on_load()
+	clone_helper.on_load()
 
 	-- data metatable to handle key not found cases
 	local mt = {
@@ -45,11 +52,6 @@ local function on_load(forced)
 	}
 	setmetatable(global.cc.data, mt.cc_data)
 	setmetatable(global.rc.data, mt.rc_data)
-
-	cc_control.on_load()
-	rc_control.on_load()
-	signals.on_load()
-	clone_helper.on_load()
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)

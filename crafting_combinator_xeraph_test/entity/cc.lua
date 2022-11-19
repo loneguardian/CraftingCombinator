@@ -1,11 +1,15 @@
 local config = require 'config'
 local areas = require("__testorio__.testUtil.areas")
+
+---@type fun(surface_index: uint, surface_name: string): LuaSurface, BoundingBox
 local test_area = areas.test_area
+---@type LuaSurface
 local surface, area
+---@type LuaPlayer
 local player
 
 before_all(function()
-    player = game.get_player(1)
+    player = game.get_player(1) --[[@as LuaPlayer]]
     surface, area = test_area(1, "entity-test")
 
     -- clear area
