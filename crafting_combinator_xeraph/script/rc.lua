@@ -120,7 +120,24 @@ function _M.destroy(entity)
 	end
 end
 
+local check_entities = function(state)
+	local signals_cache = global.signals.cache[state.entityUID]
+	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
+		log({"", "Signal cache dropped due to invalid entity(s) ", state.entityUID})
+		signals.cache.drop(state.entityUID)
+	end
+
+	if state.entity and state.entity.valid
+	and state.output_proxy and state.output_proxy.valid then
+		return true
+	else
+		log({"", "RC state destroyed due to invalid entity(s) ", state.entityUID})
+		_M.destroy(state.entityUID)
+	end
+end
+
 function _M:update(forced)
+	if not check_entities(self) then return end
 	if forced then
 		self.last_signal = false
 		self.last_name = false

@@ -56,7 +56,7 @@ function _M.check_signal_cache_entities(state)
 		if lamp and not lamp.valid then return end
 	end
 	return true
-end
+end -- currently the highest computational cost for entity validty check
 
 ---Method to migrate individual signal cache state into the game
 ---@param cache_state table
