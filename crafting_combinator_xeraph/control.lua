@@ -36,19 +36,19 @@ local function on_load(forced)
 				game.print({"", "[Crafting Combinator] Please report bug to mod author"})
 				log({"", key, " | key not found in global.cc.data"})
 				return cc_control.on_key_not_found(key)
-			end
+	end
 		},
 		rc_data = {
-			__index = function(self, key)
+		__index = function(self, key)
 				game.print({"", "[Crafting Combinator] ", key, " | key not found in global.rc.data, rc state has been reset"})
 				game.print({"", "[Crafting Combinator] Please report bug to mod author"})
 				log({"", key, " | key not found in global.rc.data"})
 				return rc_control.on_key_not_found(key)
 			end
-		}
 	}
-	setmetatable(global.cc.data, mt.cc_data)
-	setmetatable(global.rc.data, mt.rc_data)
+	}
+		setmetatable(global.cc.data, mt.cc_data)
+		setmetatable(global.rc.data, mt.rc_data)
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)
@@ -326,13 +326,7 @@ script.on_event(
 )
 
 -- GUI events
-script.on_event(defines.events.on_gui_opened, function(event)
-	local entity = event.entity
-	if entity then
-		if entity.name == config.CC_NAME then global.cc.data[entity.unit_number]:open(event.player_index); end
-		if entity.name == config.RC_NAME then global.rc.data[entity.unit_number]:open(event.player_index); end
-	end
-end)
+script.on_event(defines.events.on_gui_opened, gui.gui_event_handler)
 script.on_event(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
@@ -342,48 +336,10 @@ script.on_event(defines.events.on_gui_closed, function(event)
 	-- blueprint gui
 	blueprint.handle_event(event)
 end)
-script.on_event(defines.events.on_gui_checked_state_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_checked_changed(element_name, element.state, element)
-		end
-		if gui_name == 'recipe-combinator' then
-			global.rc.data[unit_number]:on_checked_changed(element_name, element.state, element)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_selection_changed(element_name, element.selected_index)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_text_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'recipe-combinator' then
-			global.rc.data[unit_number]:on_text_changed(element_name, element.text)
-		elseif gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_text_changed(element_name, element.text)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_click, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_click(element_name, element)
-		end
-	end
-end)
+script.on_event(defines.events.on_gui_checked_state_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_selection_state_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_text_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
 
 if script.active_mods.testorio and script.active_mods.crafting_combinator_xeraph_test then
 	require "__crafting_combinator_xeraph_test__.main"

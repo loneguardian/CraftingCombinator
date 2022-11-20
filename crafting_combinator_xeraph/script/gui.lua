@@ -1,3 +1,5 @@
+local config = require "config"
+
 local _M = {}
 
 
@@ -283,6 +285,97 @@ function _M.destroy_entity_gui(unit_number)
 			end
 		end
 	end
+end
+
+local get_proc = {
+	["crafting-combinator"] = {
+		state_type = "cc"
+	},
+	["recipe-combinator"] = {
+		state_type = "rc"
+	},
+	[config.CC_NAME] = {
+		state_type = "cc"
+	},
+	[config.RC_NAME] = {
+		state_type = "rc"
+	}
+}
+
+local get_handler = {
+	[defines.events.on_gui_click] = function(event)
+		---@cast event EventData.on_gui_click
+		local element = event.element
+		if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
+			local gui_name, unit_number, element_name = _M.parse_entity_gui_name(element.name)
+			local state
+			local proc = get_proc[gui_name]
+			if proc then
+				state = global[proc.state_type].data[unit_number]
+				if state then state:on_click(element_name, element) end
+			end
+		end
+	end,
+
+	[defines.events.on_gui_text_changed] = function(event)
+		---@cast event EventData.on_gui_text_changed
+		local element = event.element
+		if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
+			local gui_name, unit_number, element_name = _M.parse_entity_gui_name(element.name)
+			local state
+			local proc = get_proc[gui_name]
+			if proc then
+				state = global[proc.state_type].data[unit_number]
+				if state then state:on_text_changed(element_name, element.text) end
+			end
+		end
+	end,
+
+	[defines.events.on_gui_selection_state_changed] = function(event)
+		---@cast event EventData.on_gui_selection_state_changed
+		local element = event.element
+		if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
+			local gui_name, unit_number, element_name = _M.parse_entity_gui_name(element.name)
+			local state
+			local proc = get_proc[gui_name]
+			if proc then
+				state = global[proc.state_type].data[unit_number]
+				if state then state:on_selection_changed(element_name, element.selected_index) end
+			end
+		end
+	end,
+
+	[defines.events.on_gui_checked_state_changed] = function(event)
+		---@cast event EventData.on_gui_checked_state_changed
+		local element = event.element
+		if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
+			local gui_name, unit_number, element_name = _M.parse_entity_gui_name(element.name)
+			local state
+			local proc = get_proc[gui_name]
+			if proc then
+				state = global[proc.state_type].data[unit_number]
+				if state then state:on_checked_changed(element_name, element.state, element) end
+			end
+		end
+	end,
+
+	[defines.events.on_gui_opened] = function(event)
+		---@cast event EventData.on_gui_opened
+		local entity = event.entity
+		if entity then
+			local state
+			local proc = get_proc[entity.name]
+			if proc then
+				state = global[proc.state_type].data[entity.unit_number]
+				if state then state:open(event.player_index) end
+			end
+		end
+	end
+}
+
+function _M.gui_event_handler(event)
+	local handler = get_handler[event.name]
+	if handler then	return handler(event) end
 end
 
 return _M
