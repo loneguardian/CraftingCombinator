@@ -16,6 +16,7 @@ __crafting_combinator_xeraph_test__global = nil
 ---@class GlobalCc
 ---@field data table<uid, CcState>
 ---@field ordered table<uint, CcState>
+---@field inserter_empty_queue table
 
 ---@class GlobalRc
 ---@field data table<uid, RcState>
@@ -76,6 +77,33 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field update function Method to update CC state
 ---@field find_assembler function
 ---@field find_chest function
+
+-- RC State
+
+---@alias RcMode
+---| 'ing' Find ingredients
+---| 'mac' Find machines
+---| 'prod' Find products
+---| 'rec' Find recipe
+---| 'use' Find uses
+
+---@class RcSettings
+---@field mode RcMode,
+---@field multiply_by_input boolean
+---@field divide_by_output boolean
+---@field differ_output boolean
+---@field time_multiplier number
+
+---@class RcState
+---@field entityUID uid Combinator entity's uid
+---@field entity LuaEntity Combinator entity
+---@field output_proxy LuaEntity
+---@field control_behavior LuaControlBehavior
+---@field input_control_behavior LuaControlBehavior
+---@field settings RcSettings
+---@field last_signal string|false
+---@field last_name string|false
+---@field last_count int|false
 
 -- Signals Cache
 

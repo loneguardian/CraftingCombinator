@@ -4,7 +4,7 @@ local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
-
+---@type RcState
 local _M = {}
 local combinator_mt = {__index = _M}
 
@@ -67,6 +67,7 @@ end
 -- Lifecycle events
 
 function _M.create(entity, tags, migrated_state)
+	---@type RcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -94,7 +95,7 @@ function _M.create(entity, tags, migrated_state)
 		source_circuit_id = defines.circuit_connector_id.combinator_output,
 	}
 	combinator.output_proxy.destructible = false
-	combinator.control_behavior = combinator.output_proxy.get_or_create_control_behavior()
+	combinator.control_behavior = combinator.output_proxy.get_or_create_control_behavior() --[[@as LuaControlBehavior]]
 	
 	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = combinator.entityUID
 	global.rc.data[entity.unit_number] = combinator
@@ -120,6 +121,7 @@ function _M.destroy(entity)
 	end
 end
 
+---@param state RcState
 local check_entities = function(state)
 	local signals_cache = global.signals.cache[state.entityUID]
 	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
