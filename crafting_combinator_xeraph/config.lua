@@ -1,16 +1,3 @@
----@class CcSettings
----@field chest_position integer
----@field mode string
----@field wait_for_output_to_clear boolean
----@field discard_items boolean
----@field discard_fluids boolean
----@field empty_inserters boolean
----@field read_recipe boolean
----@field read_speed boolean
----@field read_machine_status boolean
----@field craft_until_zero boolean
----@field craft_n_before_switch integer
-
 local c = {
 	MOD_PATH = '__crafting_combinator_xeraph__',
 	CC_NAME = 'crafting_combinator:crafting-combinator',
@@ -91,12 +78,14 @@ local c = {
 }
 
 -- load values on script load
+---@param settings LuaSettings
 function c:load_values(settings)
 	self.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value
 	self.CC_DEFAULT_SETTINGS.input_buffer_size = settings.global[self.CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME].value
 end
 
 -- Mod settings events
+---@param event EventData.on_runtime_mod_setting_changed
 function c:on_mod_settings_changed(event)
 	if event.setting == self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME then
 		self.CC_DEFAULT_SETTINGS.craft_n_before_switch = settings.global[self.CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME].value

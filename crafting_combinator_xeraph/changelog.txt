@@ -1,7 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.2
-Date: ????
+Date: 2022-11-20
   Changes:
+    - Implements entity validity check before every combinator update, mod's time usage is expected to increase about 20%
+    - This change is considered necessary as it allows the mod to handle and notify user when the mod entities were incorrectly changed by other mods
+  Locale:
+    - Updated strings for blueprint.delayed-transfer to inform mod limitation while updating blueprints
+    - Missing translation for new keys: crafting_combinator.err
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2022-11-14
@@ -13,7 +18,7 @@ Date: 2022-11-14
          - Crafting combinators leaving behind orphaned entities
          - Invalid entity or control behavior object (https://mods.factorio.com/mod/crafting_combinator/discussion/6210fc02f30d3ff351b5cdbc)
       - The premise behind the change is that constant combinators and crafting combinators are functionally different, hence it doesn't make sense to allow fast-replace mechanics between them.
-      - Feedback on this change is welcome.
+      - Feedback on this change is welcome
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2022-11-07

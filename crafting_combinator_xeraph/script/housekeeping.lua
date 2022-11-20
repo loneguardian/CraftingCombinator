@@ -181,7 +181,7 @@ local function cleanup()
             local control = proc_data[entity_name].main_control
             local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
             local migrated_state
-            if part and part.valid then
+            if part then
                 migrated_state = {[proc_data[entity_name].part_key] = part}
                 global.main_uid_by_part_uid[part.unit_number] = uid
             end

@@ -1,38 +1,8 @@
----@class CacheEntities
----@field highest LuaEntity
----@field highest_present LuaEntity
----@field highest_count LuaEntity
----@field signal_present LuaEntity
-
----@class CacheCb
----@field _cb LuaControlBehavior
----@field valid boolean
----@field value CacheValue
-
----@class CacheValue
----@field signal CacheSignal
-
----@class CacheSignal
----@field type string
----@field name string
-
----@class SignalsCacheState
----@field __entity LuaEntity
----@field __circuit_id defines.circuit_connector_id
----@field __cache_entities CacheEntities
----@field highest CacheCb
----@field highest_present CacheCb
----@field highest_count CacheCb
----@field signal_present CacheCb
-
 local config = require 'config'
-
-
 local _M = {}
 
-
 _M.EVERYTHING = {type = 'virtual', name = 'signal-everything'}
-
+local LAMP_TYPES = {"highest", "highest_count", "highest_present", "signal_present"}
 
 local cache_mt = {
 	__index = function(self, key)
@@ -77,6 +47,17 @@ function _M.on_load()
 	for _, cache in pairs(global.signals.cache) do setmetatable(cache, cache_mt); end
 end
 
+---@param state SignalsCacheState
+---@return boolean|nil true if all entities are valid
+function _M.check_signal_cache_entities(state)
+	if not state then return end
+	for i=1,#LAMP_TYPES do
+		local lamp = state.__cache_entities[LAMP_TYPES[i]]
+		if lamp and not lamp.valid then return end
+	end
+	return true
+end -- currently the highest computational cost for entity validty check
+
 ---Method to migrate individual signal cache state into the game
 ---@param cache_state table
 ---@param uid uid  
@@ -110,7 +91,7 @@ function _M.migrate_lamp(lamp)
 	local cache = _M.cache.get(combinator_entity, circuit_id, combinator_entity.unit_number)
 
 	-- get cb
-	local cb = lamp.get_control_behavior()
+	local cb = lamp.get_control_behavior() --[[@as LuaLampControlBehavior]]
 	if not (cb and cb.valid) then return end
 
 	local lamp_type
@@ -149,9 +130,8 @@ function _M.verify(uid, state)
 	local combinator_entity = state.__entity
 	if combinator_entity and combinator_entity.valid then
 			-- check lamps and update main_uid_by_part_uid
-			local lamp_types = {"highest", "highest_count", "highest_present", "signal_present"}
-			for i= 1, #lamp_types do
-			local lamp_type = lamp_types[i]
+			for i= 1, #LAMP_TYPES do
+			local lamp_type = LAMP_TYPES[i]
 				if rawget(state, lamp_type) then
 					local lamp_cb = state[lamp_type].__cb
 					local lamp_entity = state.__cache_entities[lamp_type]
@@ -176,9 +156,8 @@ _M.cache = {}
 ---@param entity LuaEntity
 ---@param circuit_id defines.circuit_connector_id.combinator_input
 ---@param entityUID uid
----@return table cache_state Signals cache state for the cc/rc state
+---@return SignalsCacheState cache_state Signals cache state for the cc/rc state
 function _M.cache.get(entity, circuit_id, entityUID)
-	---@type SignalsCacheState
 	local cache = global.signals.cache[entityUID]
 	if not cache then
 		cache = setmetatable({
@@ -201,7 +180,6 @@ function _M.cache.reset(entity, name) -- not used? to reset already existing lam
 end
 
 function _M.cache.drop(unit_number)
-	---@type SignalsCacheState
 	local cache = global.signals.cache[unit_number]
 	if cache then
 		for _, e in pairs(cache.__cache_entities) do

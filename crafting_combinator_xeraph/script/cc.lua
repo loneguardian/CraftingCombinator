@@ -1,37 +1,3 @@
----@alias unit_number uint Unique ID for entity
----@alias uid unit_number Unique ID for entity
-
----@class AssemblerInventories
----@field input LuaInventory?
----@field output LuaInventory?
-
----@class CcInventories
----@field module_chest LuaInventory?
----@field chest LuaInventory?
----@field assembler AssemblerInventories
-
----@class CcState
----@field entityUID uid Combinator entity's uid
----@field entity LuaEntity Combinator entity
----@field control_behavior LuaControlBehavior? Combinator's control behavior
----@field module_chest LuaEntity Module chest entity associated to this CC
----@field assembler LuaEntity Assembler entity associated to this CC
----@field settings CcSettings CC settings table
----@field inventories CcInventories
----@field items_to_ignore table ???
----@field last_flying_text_tick integer
----@field enabled boolean
----@field last_recipe LuaRecipe|boolean|nil
----@field last_assembler_recipe LuaRecipe|boolean|nil
----@field read_mode_cb boolean
----@field sticky boolean
----@field allow_sticky boolean
----@field unstick_at_tick integer
----@field update function Method to update CC state
----@field find_assembler function
----@field find_chest function
-
-
 local util = require 'script.util'
 local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
@@ -67,8 +33,6 @@ end
 
 function _M.init_global()
 	global.cc = global.cc or {}
-
-	---@type {[uid]: CcState}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = {}
@@ -178,7 +142,7 @@ end
 ---@return boolean true when successfully mined
 function _M.mine_module_chest(uid, player_index)
 	if player_index then
-		local player = game.get_player(player_index)
+		local player = game.get_player(player_index) --[[@as LuaPlayer]]
 		local combinator = global.cc.data[uid]
 		local success = player.mine_entity(combinator.module_chest)
 		if success then
@@ -265,9 +229,26 @@ function params:clear()
 	for i = 1, #self.data do self.data[i] = nil end
 end
 
+function _M.check_entities(state)
+	local signals_cache = global.signals.cache[state.entityUID]
+	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
+		log({"", "Signal cache dropped due to invalid entity(s) ", state.entityUID})
+		signals.cache.drop(state.entityUID)
+	end
+
+	if state.entity and state.entity.valid
+	and state.module_chest and state.module_chest.valid then
+		return true
+	else
+		log({"", "CC state destroyed due to invalid entity(s) ", state.entityUID})
+		_M.destroy(state.entityUID)
+	end
+end
+
 ---Method to update CC state
 ---@param forced boolean Forced update clears control_behavior signals.
 function _M:update(forced, current_tick)
+	if not self:check_entities() then return end
 	if forced then
 		params:clear()
 		self.control_behavior.parameters = params.data

@@ -27,6 +27,30 @@ local function on_load(forced)
 	rc_control.on_load()
 	signals.on_load()
 	clone_helper.on_load()
+
+	-- data metatable to handle key not found cases
+	local mt = {}
+	mt.on_key_not_found = function(key, tname)
+		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found", key, tname}})
+		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found-report", key, tname}})
+		housekeeping.cleanup()
+	end
+	mt.cc_data = {
+		__index = function(_, key)
+			local tname = "global.cc.data"
+			mt.on_key_not_found(key, tname)
+		end,
+		__metatable = mt
+	}
+	mt.rc_data = {
+		__index = function(_, key)
+			local tname = "global.rc.data"
+			mt.on_key_not_found(key, tname)
+		end,
+		__metatable = mt
+	}
+	setmetatable(global.cc.data, mt.cc_data)
+	setmetatable(global.rc.data, mt.rc_data)
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)
@@ -56,8 +80,10 @@ script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
 	migration_helper.migrate(changes)
-	late_migrations(changes)
-	on_load(true)
+	if next(late_migrations.__migrations) ~= nil then
+		late_migrations(changes)
+		on_load(true)
+	end
 	enable_recipes()
 end)
 
@@ -95,6 +121,7 @@ local is_cc_entities = {
 	[config.SIGNAL_CACHE_NAME] = true
 }
 
+---@param event EventData.on_entity_cloned
 local function on_cloned(event)
 	local entity = event.destination
 	if not (entity and entity.valid) then return end
@@ -120,6 +147,7 @@ end
 -- At the time of writing, there is no API that notifies the clearing of entities due to area/brush clone
 -- on_entity_cloned event, despite being the first event received for cloning, is only fired after cleared entity has become invalid
 
+---@param event EventData.on_entity_died | EventData.on_player_mined_entity | EventData.on_robot_mined_entity | EventData.script_raised_destroy
 local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on_robot_mined_entity, script_raised_destroy
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
@@ -136,6 +164,7 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 	end
 
 	if entity_name == config.CC_NAME then
+		---@type uid
 		local uid = entity.unit_number
 		local module_chest = global.cc.data[uid].module_chest
 		local module_chest_uid = module_chest.unit_number
@@ -301,13 +330,7 @@ script.on_event(
 )
 
 -- GUI events
-script.on_event(defines.events.on_gui_opened, function(event)
-	local entity = event.entity
-	if entity then
-		if entity.name == config.CC_NAME then global.cc.data[entity.unit_number]:open(event.player_index); end
-		if entity.name == config.RC_NAME then global.rc.data[entity.unit_number]:open(event.player_index); end
-	end
-end)
+script.on_event(defines.events.on_gui_opened, gui.gui_event_handler)
 script.on_event(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
@@ -317,45 +340,11 @@ script.on_event(defines.events.on_gui_closed, function(event)
 	-- blueprint gui
 	blueprint.handle_event(event)
 end)
-script.on_event(defines.events.on_gui_checked_state_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_checked_changed(element_name, element.state, element)
-		end
-		if gui_name == 'recipe-combinator' then
-			global.rc.data[unit_number]:on_checked_changed(element_name, element.state, element)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_selection_changed(element_name, element.selected_index)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_text_changed, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'recipe-combinator' then
-			global.rc.data[unit_number]:on_text_changed(element_name, element.text)
-		elseif gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_text_changed(element_name, element.text)
-		end
-	end
-end)
-script.on_event(defines.events.on_gui_click, function(event)
-	local element = event.element
-	if element and element.valid and element.name and element.name:match('^crafting_combinator:') then
-		local gui_name, unit_number, element_name = gui.parse_entity_gui_name(element.name)
-		if gui_name == 'crafting-combinator' then
-			global.cc.data[unit_number]:on_click(element_name, element)
-		end
-	end
-end)
+script.on_event(defines.events.on_gui_checked_state_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_selection_state_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_text_changed, gui.gui_event_handler)
+script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
+
+if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
+	require "__crafting_combinator_xeraph_test__.main"
+end
