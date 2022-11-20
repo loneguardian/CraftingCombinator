@@ -108,7 +108,7 @@ function _M.destroy(entity)
 end
 
 ---@param state RcState
-local check_entities = function(state)
+function _M.check_entities(state)
 	local signals_cache = global.signals.cache[state.entityUID]
 	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
 		log({"", "Signal cache dropped due to invalid entity(s) ", state.entityUID})
@@ -125,7 +125,7 @@ local check_entities = function(state)
 end
 
 function _M:update(forced)
-	if not check_entities(self) then return end
+	if not self:check_entities() then return end
 	if forced then
 		self.last_signal = false
 		self.last_name = false

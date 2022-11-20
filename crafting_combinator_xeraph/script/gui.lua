@@ -312,7 +312,7 @@ local get_handler = {
 			local proc = get_proc[gui_name]
 			if proc then
 				state = global[proc.state_type].data[unit_number]
-				if state then state:on_click(element_name, element) end
+				if state and state:check_entities() then state:on_click(element_name, element) end
 			end
 		end
 	end,
@@ -326,7 +326,7 @@ local get_handler = {
 			local proc = get_proc[gui_name]
 			if proc then
 				state = global[proc.state_type].data[unit_number]
-				if state then state:on_text_changed(element_name, element.text) end
+				if state and state:check_entities() then state:on_text_changed(element_name, element.text) end
 			end
 		end
 	end,
@@ -340,7 +340,7 @@ local get_handler = {
 			local proc = get_proc[gui_name]
 			if proc then
 				state = global[proc.state_type].data[unit_number]
-				if state then state:on_selection_changed(element_name, element.selected_index) end
+				if state and state:check_entities() then state:on_selection_changed(element_name, element.selected_index) end
 			end
 		end
 	end,
@@ -354,7 +354,7 @@ local get_handler = {
 			local proc = get_proc[gui_name]
 			if proc then
 				state = global[proc.state_type].data[unit_number]
-				if state then state:on_checked_changed(element_name, element.state, element) end
+				if state and state:check_entities() then state:on_checked_changed(element_name, element.state, element) end
 			end
 		end
 	end,
@@ -367,7 +367,7 @@ local get_handler = {
 			local proc = get_proc[entity.name]
 			if proc then
 				state = global[proc.state_type].data[entity.unit_number]
-				if state then state:open(event.player_index) end
+				if state and state:check_entities() then state:open(event.player_index) end
 			end
 		end
 	end
