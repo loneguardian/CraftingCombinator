@@ -47,8 +47,8 @@ local function on_load(forced)
 			end
 	}
 	}
-		setmetatable(global.cc.data, mt.cc_data)
-		setmetatable(global.rc.data, mt.rc_data)
+	setmetatable(global.cc.data, mt.cc_data)
+	setmetatable(global.rc.data, mt.rc_data)
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)
@@ -78,8 +78,10 @@ script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
 	migration_helper.migrate(changes)
-	late_migrations(changes)
-	on_load(true)
+	if next(late_migrations.__migrations) ~= nil then
+		late_migrations(changes)
+		on_load(true)
+	end
 	enable_recipes()
 end)
 
@@ -341,6 +343,6 @@ script.on_event(defines.events.on_gui_selection_state_changed, gui.gui_event_han
 script.on_event(defines.events.on_gui_text_changed, gui.gui_event_handler)
 script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
 
-if script.active_mods.testorio and script.active_mods.crafting_combinator_xeraph_test then
+if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
 	require "__crafting_combinator_xeraph_test__.main"
 end
