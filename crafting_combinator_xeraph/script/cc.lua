@@ -33,8 +33,6 @@ end
 
 function _M.init_global()
 	global.cc = global.cc or {}
-
-	---@type {[uid]: CcState}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = {}
@@ -118,21 +116,6 @@ function _M.on_module_chest_cancel_decon(entity)
 	combinator:update()
 end
 
--- this function should only be called when something goes wrong - state is not found in global data
-function _M.on_key_not_found(key)
-	local entities
-	for _, v in pairs(game.surfaces) do
-		entities = v.find_entities_filtered({name = config.CC_NAME})
-	end
-	for i=1, #entities do
-		if entities[i].unit_number == key then
-			_M.create(entities[i])
-			break
-		end
-	end
-	return rawget(global.cc.data, key)
-end
-
 ---Destroy method for cc state
 ---@param entity unit_number|LuaEntity
 function _M.destroy(entity)
@@ -159,7 +142,7 @@ end
 ---@return boolean true when successfully mined
 function _M.mine_module_chest(uid, player_index)
 	if player_index then
-		local player = game.get_player(player_index)
+		local player = game.get_player(player_index) --[[@as LuaPlayer]]
 		local combinator = global.cc.data[uid]
 		local success = player.mine_entity(combinator.module_chest)
 		if success then

@@ -29,23 +29,25 @@ local function on_load(forced)
 	clone_helper.on_load()
 
 	-- data metatable to handle key not found cases
-	local mt = {
-		cc_data = {
-			__index = function(self, key)
-				game.print({"", "[Crafting Combinator] ", key, " | key not found in global.cc.data, cc state has been reset"})
-				game.print({"", "[Crafting Combinator] Please report bug to mod author"})
-				log({"", key, " | key not found in global.cc.data"})
-				return cc_control.on_key_not_found(key)
+	local mt = {}
+	mt.on_key_not_found = function(key, tname)
+		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found", key, tname}})
+		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found-report", key, tname}})
+		housekeeping.cleanup()
 	end
-		},
-		rc_data = {
-		__index = function(self, key)
-				game.print({"", "[Crafting Combinator] ", key, " | key not found in global.rc.data, rc state has been reset"})
-				game.print({"", "[Crafting Combinator] Please report bug to mod author"})
-				log({"", key, " | key not found in global.rc.data"})
-				return rc_control.on_key_not_found(key)
-			end
+	mt.cc_data = {
+		__index = function(_, key)
+			local tname = "global.cc.data"
+			mt.on_key_not_found(key, tname)
+		end,
+		__metatable = mt
 	}
+	mt.rc_data = {
+		__index = function(_, key)
+			local tname = "global.rc.data"
+			mt.on_key_not_found(key, tname)
+		end,
+		__metatable = mt
 	}
 	setmetatable(global.cc.data, mt.cc_data)
 	setmetatable(global.rc.data, mt.rc_data)
