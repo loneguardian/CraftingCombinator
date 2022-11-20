@@ -1,9 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.2
-Date: ????
+Date: 2022-11-20
   Changes:
+    - Implements entity validity check before every combinator update, mod's time usage is expected to increase about 20%
+    - This change is considered necessary as it allows the mod to handle and notify user when the mod entities were incorrectly changed by other mods
   Locale:
-    - Updated description for blueprint.delayed-transfer to inform mod limitation while updating blueprints
+    - Updated strings for blueprint.delayed-transfer to inform mod limitation while updating blueprints
+    - Missing translation for new keys: crafting_combinator.err
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2022-11-14
