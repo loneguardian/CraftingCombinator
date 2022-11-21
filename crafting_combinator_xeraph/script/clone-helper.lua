@@ -212,32 +212,30 @@ end
 ---Should receive only cc entities
 ---@param event EventData.on_entity_cloned
 local on_entity_cloned = function(event)
-    local old_uid = event.source.unit_number ---@type uint
+    local old_uid = event.source.unit_number --[[@as uid]]
     local new_entity = event.destination
     local new_entity_name = new_entity.name
     local ph_type = get_ph_type[new_entity_name]
     local state_type = get_state_type[new_entity_name]
     local current = event.tick
 
-    -- if main, it will trigger combinator + cache ph
-    if ph_type == 'combinator-main' then
+    -- if ph_type == main, it will trigger combinator + cache ph
+
+    if ph_type == 'combinator-main' or ph_type == 'cache' then
         local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
-        ---@cast ph PhCombinator
+        ---@cast ph PhCombinator|PhCache
         update_ph(ph, new_entity, old_uid, old_main_uid)
         verify_ph(ph, state_type, old_main_uid)
+    end
 
-        -- cache
-        ph, old_main_uid = get_ph('cache', old_uid, nil, current)
-        ---@cast ph PhCache
+    if ph_type == "combinator-main" then
+        -- cache for main
+        local ph, old_main_uid = get_ph('cache', old_uid, nil, current)
+        ---@cast ph PhCache|nil
         if ph then
             update_ph(ph, new_entity, old_uid, old_main_uid)
             verify_ph(ph, 'cache', old_main_uid)
         end
-    else
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
-        ---@cast ph PhCache
-        update_ph(ph, new_entity, old_uid, old_main_uid)
-        verify_ph(ph, state_type, old_main_uid)
     end
     -- TODO: Merge get and update
     -- TODO: listen to chest and assembler clone events and link them with a lookup (possible UPS optimisation)?
