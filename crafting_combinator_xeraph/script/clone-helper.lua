@@ -47,52 +47,55 @@ local get_state_type = {
     [config.SIGNAL_CACHE_NAME] = "cache"
 }
 
----Get or create method for ph.
+---Create method for ph.
+---@param ph_list PhCombinatorList|PhCacheList
 ---@param ph_type ph_type
----@param old_uid uid
----@param new_entity_name string
----@param current uint
----@return table ph if found
----@return uid old_main_uid associated old_main_uid from main_uid_by_part_uid lookup
-local get_ph = function(ph_type, old_uid, new_entity_name, current)
-    local ph, old_main_uid
-    if ph_type ~= "cache" then
-        if ph_type == "combinator-main" then
-            old_main_uid = old_uid
-            ph = ph_combinator[old_uid]
-        elseif ph_type == "combinator-part" then
-            old_main_uid = main_uid_by_part_uid[old_uid]
-            ph = ph_combinator[old_main_uid]
-        end
-        if not ph then
-            -- create new ph
-            ph = {entity = false}
+---@param old_main_uid old_main_uid
+---@param new_entity_name string|nil
+---@param current uint event.tick
+---@return PhCombinator|PhCache|nil
+local create_ph = function(ph_list, ph_type, old_main_uid, new_entity_name, current)
+    ---@type PhCombinator|PhCache
+    local ph = {entity = false}
+    if ph_type == "combinator-main" or ph_type == "combinator-part" then
         if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
             ph.module_chest = false
         elseif new_entity_name == config.RC_NAME or new_entity_name == config.RC_PROXY_NAME then
             ph.output_proxy = false
         end
-            ph_combinator[old_main_uid] = ph
-            ph_combinator.count = ph_combinator.count + 1
-            ph_timestamp[old_main_uid] = current
-        end
-    else
-        old_main_uid = main_uid_by_part_uid[old_uid] or old_uid
-        ph = ph_cache[old_main_uid]
-        if not ph then
-            local old_cache_state = global.signals.cache[old_main_uid] -- for main that does not have a cache
-            if old_cache_state then
-                -- create new ph
-                ph = {entity = false}
-                -- create keys based on signals cache
-                for k in pairs(old_cache_state.__cache_entities) do
+    elseif ph_type == "cache" then
+        local old_cache_state = global.signals.cache[old_main_uid]
+        if not old_cache_state then return end -- return when no old cache found
+        for k in pairs(old_cache_state.__cache_entities) do -- old cache found, create keys based on signals cache
             ph[k] = false
         end
-                ph_cache[old_main_uid] = ph
-                ph_cache.count = ph_cache.count + 1
+    end
+    ph_list[old_main_uid] = ph
+    ph_list.count = ph_list.count + 1
     ph_timestamp[old_main_uid] = current
+    return ph
 end
+
+---Get method for ph.
+---@param ph_type ph_type
+---@param old_uid uid `unit_number` for the source entity
+---@param new_entity_name string | nil entity name, nil when calling for `PhCache` in `combinator-main`
+---@param current uint event.tick
+---@return PhCombinator | PhCache | nil ph `PhCache` returned only if `old_main_uid` found in global `signals.cache`
+---@return old_main_uid old_main_uid associated `old_main_uid` obtained from `main_uid_by_part_uid` lookup
+local get_ph = function(ph_type, old_uid, new_entity_name, current)
+    ---@type PhCombinator|PhCache|nil, old_main_uid
+    local ph, old_main_uid
+    if ph_type ~= "cache" then
+        if ph_type == "combinator-main" then
+            old_main_uid = old_uid
+        elseif ph_type == "combinator-part" then
+            old_main_uid = main_uid_by_part_uid[old_uid]
         end
+        ph = ph_combinator[old_main_uid] or create_ph(ph_combinator, ph_type, old_main_uid, new_entity_name, current)
+    else
+        old_main_uid = main_uid_by_part_uid[old_uid] or old_uid -- if not found in main_uid_by_part_uid lookup, it is the main entity
+        ph = ph_cache[old_main_uid] or create_ph(ph_cache, ph_type, old_main_uid, new_entity_name, current)
     end
     return ph, old_main_uid
 end
