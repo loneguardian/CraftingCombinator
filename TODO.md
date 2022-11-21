@@ -1,29 +1,14 @@
-clone - assembler before cc -> update assembler -> triggers cc entity check -> no key handler
+solve the following issues before 0.2.2 release:
 
-cloning order permutation test example
-```
-function permgen (a, n)
-  if n == 0 then
-	printResult(a)
-  else
-	for i=1,n do
+1. evaluate the need of having to index potentially non-existent keys in `update assembler` (clone - assembler before cc -> update assembler -> triggers cc entity check -> `key-not-found` handler) and `housekeeping` (to find orphans). Either to:
+	- rewrite logic to avoid indexing non-existent keys OR
+	- use rawget but less performant - probably needed in housekeeping
 
-	  -- put i-th element as the last one
-	  a[n], a[i] = a[i], a[n]
+2. infinity loop in:
 
-	  -- generate all permutations of the other elements
-	  permgen(a, n - 1)
+	`key-not-found` handler -> housekeeping -> line 180 -> loop to index global data for all cc entities (to create cc/rc state if orphan found) -> index action triggers `key-not-found` handler
 
-	  -- restore i-th element
-	  a[n], a[i] = a[i], a[n]
-
-	end
-  end
-end
-```
-
-infinity loop in:
-no key handler -> housekeeping -> line 180 -> loop to index global data for all cc entities (to create cc/rc state if orphan found) -> index action triggers no key handler
+	- break `housekeeping.clear()` into smaller parts that can be used by `key-not-found` handler
 
 ```
 The mod Space Exploration (0.6.89) caused a non-recoverable error.
@@ -68,3 +53,32 @@ stack traceback:
 	__space-exploration__/scripts/spaceship.lua:2021: in function 'callback'
 	__space-exploration__/scripts/event.lua:15: in function <__space-exploration__/scripts/event.lua:13>
 ```
+
+3. delay `find_chest`, `find_assembler` for all entities cloned to the next tick (or after other mods finished their cloning process - if they decide to implement cloning over multiple ticks) - should help with ups spike during cloning. This way `update_assemblers` should have no reason to pick up cc's with non-existent keys
+
+4. test `housekeeping`
+	- create entities using script then run housekeeping and stub mt destroy calls?
+
+5. test `cloning-helper`
+	- cloning order permutation test 
+	- example permutation generator:
+
+```
+function permgen (a, n)
+  if n == 0 then
+	printResult(a)
+  else
+	for i=1,n do
+
+	  -- put i-th element as the last one
+	  a[n], a[i] = a[i], a[n]
+
+	  -- generate all permutations of the other elements
+	  permgen(a, n - 1)
+
+	  -- restore i-th element
+	  a[n], a[i] = a[i], a[n]
+
+	end
+  end
+end
