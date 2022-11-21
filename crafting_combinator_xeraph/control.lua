@@ -267,8 +267,10 @@ end)
 script.on_event(defines.events.on_player_rotated_entity, function(event)
 	if event.entity.name == config.CC_NAME then
 		local combinator = global.cc.data[event.entity.unit_number]
-		combinator:find_assembler()
-		combinator:find_chest()
+		if combinator then
+			combinator:find_assembler()
+			combinator:find_chest()
+		end
 	end
 end)
 
