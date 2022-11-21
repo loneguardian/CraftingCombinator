@@ -3,8 +3,13 @@
 
 ---@alias uint64 integer
 ---@alias uint integer
+
+-- `unit_number` for entity
 ---@alias unit_number uint
 ---@alias uid unit_number
+
+-- `uid` alias used in composite entity cloning which stands for `unit_number` of old main entity
+---@alias old_main_uid uid
 
 -- Global
 
@@ -13,25 +18,52 @@ __crafting_combinator_xeraph__global = nil
 ---@type CraftingCombinatorGlobal
 __crafting_combinator_xeraph_test__global = nil
 
+--<`Key`: old main uid, `Value`: event.tick>
+---@alias PhTimestampList table<uid, uint>
+
+---@class PhCache
+---@field entity LuaEntity|false
+---@field highest? LuaEntity|false
+---@field highest_count? LuaEntity|false
+---@field highest_present? LuaEntity|false
+---@field signal_present? LuaEntity|false
+--Table: <`Key`: old main uid, `Value`: cache ph table>
+---@alias PhCacheList {count:integer} | table<old_main_uid, PhCache>
+
+---@class PhCombinator
+---@field entity LuaEntity|false
+---@field module_chest? LuaEntity|false
+---@field output_proxy? LuaEntity|false
+--Table: <`Key`: old main uid, `Value`: combinator ph table>
+---@alias PhCombinatorList {count:integer} | table<old_main_uid, PhCombinator>
+
+---@class GlobalClonePh
+---@field combinator PhCombinatorList
+---@field cache PhCacheList
+---@field timestamp PhTimestampList
+
 ---@class GlobalCc
 ---@field data table<uid, CcState>
----@field ordered table<uint, CcState>
+---@field ordered CcState[]
 ---@field inserter_empty_queue table
 
 ---@class GlobalRc
 ---@field data table<uid, RcState>
----@field ordered table<uint, RcState>
+---@field ordered RcState[]
 
 ---@class GlobalSignals
 ---@field cache table<uid, SignalsCacheState>
+
+--<`Key`: part uid, `Value`: main uid>
+---@alias main_uid_by_part_uid table<uid, uid>
 
 ---@class CraftingCombinatorGlobal
 ---@field delayed_blueprint_tag_state table
 ---@field cc GlobalCc
 ---@field rc GlobalRc
 ---@field signals GlobalSignals
----@field clone_placeholder table
----@field main_uid_by_part_uid table<uid, uid>
+---@field clone_placeholder GlobalClonePh
+---@field main_uid_by_part_uid main_uid_by_part_uid
 
 -- CC State
 

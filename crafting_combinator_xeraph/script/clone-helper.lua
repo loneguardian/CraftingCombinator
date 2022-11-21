@@ -3,20 +3,26 @@
 ---|'combinator-part'
 ---|'cache'
 
+---@alias StateType
+---|"cc"
+---|"rc"
+---|"cache"
+
 local config = require "config"
 local util = require "script.util"
 local cc_control = require "script.cc"
 
+---@type PhCombinatorList, PhCacheList, PhTimestampList, main_uid_by_part_uid
 local ph_combinator, ph_cache, ph_timestamp, main_uid_by_part_uid
 local on_load = function()
     ph_combinator = global.clone_placeholder.combinator
     ph_cache = global.clone_placeholder.cache
-    ph_timestamp = global.clone_placeholder.timestamp -- key: old_main_uid, value: event.tick
+    ph_timestamp = global.clone_placeholder.timestamp
     main_uid_by_part_uid = global.main_uid_by_part_uid
 end
 
 --- ph key lookup, used in update_ph()
-local get_ph_key = {
+local get_ph_combinator_key = {
     [config.CC_NAME] = "entity",
     [config.RC_NAME] = "entity",
     [config.MODULE_CHEST_NAME] = "module_chest",
@@ -24,7 +30,6 @@ local get_ph_key = {
 }
 
 --- ph_type lookup by entity name, used in get_ph()
----@type { [string]: ph_type }
 local get_ph_type = {
     [config.CC_NAME] = "combinator-main",
     [config.MODULE_CHEST_NAME] = "combinator-part",
@@ -62,11 +67,11 @@ local get_ph = function(ph_type, old_uid, new_entity_name, current)
         if not ph then
             -- create new ph
             ph = {entity = false}
-            if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
-                ph.module_chest = false
-            elseif new_entity_name == config.RC_NAME or new_entity_name == config.RC_PROXY_NAME then
-                ph.output_proxy = false
-            end
+        if new_entity_name == config.CC_NAME or new_entity_name == config.MODULE_CHEST_NAME then
+            ph.module_chest = false
+        elseif new_entity_name == config.RC_NAME or new_entity_name == config.RC_PROXY_NAME then
+            ph.output_proxy = false
+        end
             ph_combinator[old_main_uid] = ph
             ph_combinator.count = ph_combinator.count + 1
             ph_timestamp[old_main_uid] = current
@@ -81,17 +86,21 @@ local get_ph = function(ph_type, old_uid, new_entity_name, current)
                 ph = {entity = false}
                 -- create keys based on signals cache
                 for k in pairs(old_cache_state.__cache_entities) do
-                    ph[k] = false
-                end
+            ph[k] = false
+        end
                 ph_cache[old_main_uid] = ph
                 ph_cache.count = ph_cache.count + 1
-                ph_timestamp[old_main_uid] = current
-            end
+    ph_timestamp[old_main_uid] = current
+end
         end
     end
     return ph, old_main_uid
 end
 
+---Update method for ph_entity.
+---@param ph PhCombinator | PhCache
+---@param key string
+---@param new_entity LuaEntity
 local update_ph_entity = function(ph, key, new_entity)
     if ph[key] == false then
         ph[key] = new_entity
@@ -102,16 +111,21 @@ local update_ph_entity = function(ph, key, new_entity)
     end
 end
 
+---Update method for ph.
+---@param ph PhCombinator | PhCache
+---@param new_entity LuaEntity
+---@param old_uid uid
+---@param old_main_uid old_main_uid
 local update_ph = function(ph, new_entity, old_uid, old_main_uid)
     local new_entity_name = new_entity.name
-    local ph_key = get_ph_key[new_entity_name]
-    if ph_key then
-        update_ph_entity(ph, ph_key, new_entity)
+    local ph_combinator_key = get_ph_combinator_key[new_entity_name]
+    if ph_combinator_key then
+        update_ph_entity(ph, ph_combinator_key, new_entity)
     elseif new_entity_name == config.SIGNAL_CACHE_NAME then
         local old_cache_state = global.signals.cache[old_main_uid]
-        for lamp_type, entity in pairs(old_cache_state.__cache_entities) do
+        for ph_cache_key, entity in pairs(old_cache_state.__cache_entities) do
             if entity.unit_number == old_uid then
-                update_ph_entity(ph, lamp_type, new_entity)
+                update_ph_entity(ph, ph_cache_key, new_entity)
                 break
             end
         end
@@ -124,10 +138,11 @@ local cleanup_ph = function(old_main_uid, clone_ph)
     ph_timestamp[old_main_uid] = nil
 end
 
----Verify placeholder for clone destination information for all components,
----if all present then contruct/clone new state
----@param ph table
----@param state_type string
+---Method to verify placeholder for all components.
+---If all entity present then deepcopy old state into new state and update references.
+---@param ph PhCombinator | PhCache
+---@param state_type StateType
+---@param old_main_uid old_main_uid
 local verify_ph = function(ph, state_type, old_main_uid)
     -- loop through all keys, check for entity.valid
     for _, entity in pairs(ph) do
@@ -136,6 +151,9 @@ local verify_ph = function(ph, state_type, old_main_uid)
     
     -- all entity valid
     -- construct new state
+    
+    -- `uid` for main entity
+    ---@type uid
     local new_main_uid = ph.entity.unit_number
     if state_type == "cc" then
         ---@type CcState
@@ -201,17 +219,20 @@ local on_entity_cloned = function(event)
     -- if main, it will trigger combinator + cache ph
     if ph_type == 'combinator-main' then
         local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
+        ---@cast ph PhCombinator
         update_ph(ph, new_entity, old_uid, old_main_uid)
         verify_ph(ph, state_type, old_main_uid)
 
         -- cache
         ph, old_main_uid = get_ph('cache', old_uid, nil, current)
+        ---@cast ph PhCache
         if ph then
             update_ph(ph, new_entity, old_uid, old_main_uid)
             verify_ph(ph, 'cache', old_main_uid)
         end
     else
         local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
+        ---@cast ph PhCache
         update_ph(ph, new_entity, old_uid, old_main_uid)
         verify_ph(ph, state_type, old_main_uid)
     end
@@ -225,9 +246,11 @@ local periodic_clean_up = function(event)
     if (ph_combinator.count == 0) and (ph_cache.count == 0) then return end
     local list = {ph_combinator, ph_cache}
     for i=1,#list do
+        ---@type PhCombinatorList | PhCacheList
         local ph_list = list[i]
         if ph_list.count > 0 then
             for k, ph in pairs(ph_list) do
+                ---@cast ph PhCombinator | PhCache
                 if k ~= "count" then
                     -- if ph is just cloned (same tick) then ignore ph
                     if ph_timestamp[k] == event.tick then goto next_ph end
