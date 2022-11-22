@@ -1,5 +1,5 @@
 ---@meta
----@diagnostic disable
+--@diagnostic disable
 
 ---@type TestCreator
 test = nil
@@ -58,22 +58,30 @@ function part(func) end
 ---@field after_test_run fun() | nil
 ---@field sound_effects boolean | nil
 
----@alias TestFn fun(): void
+---@alias TestFn fun()
 ---@alias HookFn TestFn
----@alias OnTickFn (fun(tick: number): void) | (fun(tick: number): boolean)
+---@alias OnTickFn (fun(tick: number)) | (fun(tick: number): boolean)
 
 ---@class TestCreatorBase
 ---@overload fun(name: string, func: TestFn): TestBuilder<TestFn>
 local TestCreatorBase = {}
+
 ---@generic T
----@param values T[][]
+---@param values `T`[][]
 ---@param name string
----@param func fun(vararg T): void
----@return TestBuilder<fun(vararg T): void>
----@overload fun<T>(values: T[], name: string, func: fun(v: T): void): TestBuilder<fun(v: T): void>
----@overload fun<T>(values: T[][]): fun(name: string, func: fun(vararg T): void): void
----@overload fun<T>(values: T[]): fun(name: string, func: fun(v: T): void): void
+---@param func fun(...:T)
+---@return TestBuilder<fun(...:T)>
 function TestCreatorBase.each(values, name, func) end
+
+---@generic T
+---@param values `T`[][]
+---@return fun(name: string, func: fun(...:T))
+function TestCreatorBase.each(values) end
+
+---@generic T
+---@param values `T`[]
+---@return fun(name: string, func: fun(values: T))
+function TestCreatorBase.each(values) end
 
 ---@class TestCreator : TestCreatorBase
 ---@overload fun(name: string, func: TestFn): TestBuilder<TestFn>
