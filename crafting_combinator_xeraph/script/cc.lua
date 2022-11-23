@@ -266,16 +266,13 @@ end
 
 function _M.check_entities(state)
 	local signals_cache = global.signals.cache[state.entityUID]
-	if signals_cache and (not signals.check_signal_cache_entities(signals_cache)) then
-		log({"", "Signal cache dropped due to invalid entity(s) ", state.entityUID})
-		signals.cache.drop(state.entityUID)
-	end
+	if signals_cache then signals.check_signal_cache_entities(signals_cache, state.entityUID) end
 
 	if state.entity and state.entity.valid
 	and state.module_chest and state.module_chest.valid then
 		return true
 	else
-		log({"", "CC state destroyed due to invalid entity(s) ", state.entityUID})
+		log({"", "CC state destroyed due to invalid entity ", state.entityUID})
 		_M.destroy(state.entityUID)
 	end
 end
