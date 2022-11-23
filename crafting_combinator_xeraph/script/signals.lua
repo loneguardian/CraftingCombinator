@@ -61,7 +61,7 @@ function _M.check_signal_cache_entities(state, main_uid)
 		end
 	end
 	return true
-end -- currently the highest computational cost for entity validty check
+end -- currently the highest computational cost for entity validity check
 
 ---Method to migrate individual signal cache state into the game
 ---@param cache_state table

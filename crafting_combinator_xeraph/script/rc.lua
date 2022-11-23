@@ -5,7 +5,6 @@ local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
----@type RcState
 local _M = {}
 local combinator_mt = {__index = _M}
 

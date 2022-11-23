@@ -44,6 +44,19 @@ local function cleanup()
         }
     }
 
+    ---Procedure data for refactored function
+    ---@class proc_data
+    ---@field main? boolean whether this is a main entity
+    ---@field part? boolean whether this is a part entity
+    ---@field part_name string entity name for the corresponding part
+    ---@field part_key "module_chest"|"output_proxy" key to be used in construction of `migrated_state` for create() method
+    ---@field check_global boolean whether to include this entity for check_global, only one per global_data is selected
+    ---@field global_data GlobalCcData|GlobalRcData|GlobalSignalsCache reference to global data
+    ---@field main_control? table # reference to respective main modules
+    ---@field stat_key string key to be used to record statistics
+
+    ---`Key`: Entity name, `Value`: Procedure data for this entity
+    ---@type table<string,proc_data>
     local proc_data = {
         [config.CC_NAME] = {
             main = true,
@@ -154,6 +167,8 @@ local function cleanup()
 
     -- cc/rc: try to create global data
     -- signal lamp: try to link
+
+    ---@type LuaEntity[]
     local all_cc_entities = get_all_cc_entities()
 
     -- loop through for signal lamps - they should be linked before cc/rc:update is called

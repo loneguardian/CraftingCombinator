@@ -64,19 +64,17 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field data GlobalRcData
 ---@field ordered GlobalRcOrdered
 
+---<`Key`: main uid, `Value`: SignalsCacheState>
 ---@alias GlobalSignalsCache table<uid, SignalsCacheState>
 
----@class GlobalSignals
----@field cache GlobalSignalsCache
-
---<`Key`: part uid, `Value`: main uid>
+---<`Key`: part uid, `Value`: main uid>
 ---@alias main_uid_by_part_uid table<uid, uid>
 
 ---@class CraftingCombinatorGlobal
 ---@field delayed_blueprint_tag_state table
 ---@field cc GlobalCc
 ---@field rc GlobalRc
----@field signals GlobalSignals
+---@field signals {cache: GlobalSignalsCache}
 ---@field clone_placeholder GlobalClonePh
 ---@field main_uid_by_part_uid main_uid_by_part_uid
 
