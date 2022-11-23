@@ -35,7 +35,9 @@ function _M.init_global()
 	global.cc = global.cc or {}
 	global.cc.data = global.cc.data or {}
 	global.cc.ordered = global.cc.ordered or {}
-	global.cc.inserter_empty_queue = {}
+	global.cc.inserter_empty_queue = global.cc.inserter_empty_queue or {}
+	global.cc.latch_queue = global.cc.latch_queue or {state = {}, assembler = {}, container = {}}
+	global.cc.queue_count = 0
 end
 
 function _M.on_load()
@@ -44,12 +46,41 @@ end
 
 -- Lifecycle events
 
+---@alias CcScheduleActionType
+---|1 state - find_chest find_assembler
+---|2 container - update_chests
+---|3 assembler - update_assemblers
+---|4 empty inserter
+
+---Wrapper to queue a state, container, or assembler for delayed latching
+---@param action_type CcScheduleActionType
+---@param obj CcState|LuaEntity
+---@param tick uint
+function _M.schedule_action(action_type, obj, tick)
+	local queue_list
+	if action_type == 1 then
+		queue_list = global.cc.latch_queue.state
+	elseif action_type == 2 then
+		queue_list = global.cc.latch_queue.container
+	elseif action_type == 3 then
+		queue_list = global.cc.latch_queue.assembler
+	elseif action_type == 4 then
+		queue_list = global.cc.inserter_empty_queue
+	end
+	if queue_list and obj and tick then
+		local queue = queue_list[tick] or {}
+		queue[#queue + 1] = obj
+		queue_list[tick] = queue
+		global.cc.queue_count = global.cc.queue_count + 1
+	end
+end
+
 ---Create method for cc state
 ---@param entity LuaEntity
 ---@param tags? Tags
 ---@param migrated_state? table
----@param skip_find? boolean
-function _M.create(entity, tags, migrated_state, skip_find)
+---@param skip_latch? boolean
+function _M.create(entity, tags, migrated_state, skip_latch)
 	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
@@ -88,7 +119,7 @@ function _M.create(entity, tags, migrated_state, skip_find)
 		combinator.inventories = migrated_state.inventories or combinator.inventories
 	end
 
-	if not skip_find then
+	if not skip_latch then
 		combinator:find_assembler() -- latch to assembler
 		combinator:find_chest() -- latch to chest
 
@@ -182,7 +213,7 @@ function _M.mine_module_chest(uid, player_index)
 	end
 end
 
----Method which triggers a scan around the entity for combinators, which then tries to latch the combinators to an assembler
+---Method which triggers a scan around the entity for combinators, which then calls find_assembler() and tries to latch the combinators to an assembler
 ---@param surface LuaSurface Surface where the assembler entity is located
 ---@param assembler LuaEntity Assembler entity
 ---@param is_destroyed? boolean Whether this method is called due to the assembler entity being destroyed
@@ -205,6 +236,10 @@ function _M.update_assemblers(surface, assembler, is_destroyed)
 	end
 end
 
+---Method which triggers a scan around the entity for combinators, which then calls find_chest() and tries to latch the combinators to a chest
+---@param surface LuaSurface Surface where the chest entity is located
+---@param chest LuaEntity Chest entity
+---@param is_destroyed? boolean Whether this method is called due to the chest entity being destroyed
 function _M.update_chests(surface, chest, is_destroyed)
 	local combinators = surface.find_entities_filtered {
 		area = util.area(chest.prototype.selection_box):expand(config.CHEST_SEARCH_DISTANCE) + chest.position,
@@ -493,8 +528,7 @@ function _M:set_recipe(current_tick)
 			if not success then return self:on_chest_full(error, current_tick); end
 
 			local tick = current_tick + config.INSERTER_EMPTY_DELAY
-			global.cc.inserter_empty_queue[tick] = global.cc.inserter_empty_queue[tick] or {}
-			table.insert(global.cc.inserter_empty_queue[tick], self)
+			self.schedule_action(4, self, tick)
 		end
 
 		-- Clear fluidboxes
