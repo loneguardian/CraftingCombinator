@@ -2,7 +2,7 @@
 Version: 0.3.0
 Date: 2022-11-23
   Bugfixes:
-    - Mod entities deleted by the "Remove all entities" button in editor no longer crashes the mod
+    - Mod entities deleted by the "Remove all entities" and "Delete surface" button in editor no longer crashes the mod
   Changes:
     - Implements entity validity check before every combinator updates, mod's time usage is expected to increase about 10-20%
     - This change is deemed necessary for stability reasons as it allows the mod to handle entity anomalies and notify user when mod entities were incorrectly handled by other mods (or editor)

@@ -47,7 +47,7 @@ function _M.init_global()
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = global.cc.inserter_empty_queue or {}
 	global.cc.latch_queue = global.cc.latch_queue or {state = {}, assembler = {}, container = {}}
-	global.cc.queue_count = 0
+	global.cc.queue_count = global.cc.queue_count or 0
 end
 
 function _M.on_load()
