@@ -269,7 +269,7 @@ script.on_event(defines.events.on_tick, function(event)
 		if queue then
 			for i=1,#queue do
 				local state = queue[i]
-				if state.entity.valid then -- only using simple entity check because the state could have been already dropped
+				if state.entity.valid then -- using only simple entity check because the state could have already been dropped
 					state:find_assembler()
 					state:find_chest()
 					state.enabled = true -- enables update()
