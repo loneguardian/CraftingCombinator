@@ -97,6 +97,8 @@ function _M.create(entity, tags, migrated_state)
 	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = combinator.entityUID
 	global.rc.data[entity.unit_number] = combinator
 	table.insert(global.rc.ordered, combinator)
+
+	return combinator
 end
 
 ---Destroy method for rc state

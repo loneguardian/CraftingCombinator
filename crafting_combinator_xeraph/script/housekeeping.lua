@@ -187,6 +187,8 @@ local function cleanup()
         ::next_entity::
     end
 
+    local current = game.tick
+
     -- loop through for cc/rc
     for i = #all_cc_entities, 1, -1 do
         local entity = all_cc_entities[i]
@@ -201,13 +203,13 @@ local function cleanup()
                 migrated_state = {[proc_data[entity_name].part_key] = part}
                 global.main_uid_by_part_uid[part.unit_number] = uid
             end
-            control.create(entity, nil, migrated_state)
+            local state = control.create(entity, nil, migrated_state, true)
             if entity_name == config.CC_NAME then
                 count.cc_data_created = count.cc_data_created + 1
             elseif entity_name == config.RC_NAME then
                 count.rc_data_created = count.rc_data_created + 1
             end
-            proc_data[entity_name].global_data[uid]:update(true, game.tick)
+            state:update(true, current)
         end
         table.remove(all_cc_entities, i)
         ::next_entity::
