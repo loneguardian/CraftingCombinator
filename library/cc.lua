@@ -1,37 +1,84 @@
 ---@meta
 ---@diagnostic disable
 
----@alias uint64 integer
----@alias uint integer
+-- `unit_number` for entity
 ---@alias unit_number uint
 ---@alias uid unit_number
 
--- Global
+-- `uid` alias used in composite entity cloning which stands for `unit_number` of old main entity
+---@alias old_main_uid uid
+
+---< Global >---
 
 ---@type CraftingCombinatorGlobal
 __crafting_combinator_xeraph__global = nil
 ---@type CraftingCombinatorGlobal
 __crafting_combinator_xeraph_test__global = nil
 
+--<`Key`: old main uid, `Value`: event.tick>
+---@alias PhTimestampList table<uid, uint>
+
+---@class PhCache
+---@field entity LuaEntity|false
+---@field highest? LuaEntity|false
+---@field highest_count? LuaEntity|false
+---@field highest_present? LuaEntity|false
+---@field signal_present? LuaEntity|false
+
+--Table: <`Key`: old main uid, `Value`: cache ph table>
+---@alias PhCacheList {count:integer} | table<old_main_uid, PhCache>
+
+---@class PhCombinator
+---@field entity LuaEntity|false
+---@field module_chest? LuaEntity|false
+---@field output_proxy? LuaEntity|false
+
+--Table: <`Key`: old main uid, `Value`: combinator ph table>
+---@alias PhCombinatorList {count:integer} | table<old_main_uid, PhCombinator>
+
+---@class GlobalClonePh
+---@field combinator PhCombinatorList
+---@field cache PhCacheList
+---@field timestamp PhTimestampList
+
+---@class CcLatchQueue
+---@field state table<uint, CcState[]>
+---@field assembler table<uint, LuaEntity[]>
+---@field container table<uint, LuaEntity[]>
+
+---@alias GlobalCcData table<uid, CcState>
+---@alias GlobalCcOrdered CcState[]
+---@alias InserterEmptyQueue table<uint, CcState[]> #<`Key`: event.tick, `Value`: Array of CcState>
+
 ---@class GlobalCc
----@field data table<uid, CcState>
----@field ordered table<uint, CcState>
----@field inserter_empty_queue table
+---@field data GlobalCcData
+---@field ordered GlobalCcOrdered
+---@field inserter_empty_queue InserterEmptyQueue
+---@field latch_queue CcLatchQueue
+---@field queue_count uint
+
+---@alias GlobalRcData table<uid, RcState>
+---@alias GlobalRcOrdered RcState[]
 
 ---@class GlobalRc
----@field data table<uid, RcState>
----@field ordered table<uint, RcState>
+---@field data GlobalRcData
+---@field ordered GlobalRcOrdered
+
+---@alias GlobalSignalsCache table<uid, SignalsCacheState>
 
 ---@class GlobalSignals
----@field cache table<uid, SignalsCacheState>
+---@field cache GlobalSignalsCache
+
+--<`Key`: part uid, `Value`: main uid>
+---@alias main_uid_by_part_uid table<uid, uid>
 
 ---@class CraftingCombinatorGlobal
 ---@field delayed_blueprint_tag_state table
 ---@field cc GlobalCc
 ---@field rc GlobalRc
 ---@field signals GlobalSignals
----@field clone_placeholder table
----@field main_uid_by_part_uid table<uid, uid>
+---@field clone_placeholder GlobalClonePh
+---@field main_uid_by_part_uid main_uid_by_part_uid
 
 -- CC State
 
@@ -77,6 +124,7 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field update function Method to update CC state
 ---@field find_assembler function
 ---@field find_chest function
+---@field queue_latch function
 
 -- RC State
 
@@ -129,3 +177,6 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field highest_present CacheCb
 ---@field highest_count CacheCb
 ---@field signal_present CacheCb
+
+
+--- TEST

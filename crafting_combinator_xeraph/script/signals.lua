@@ -48,12 +48,17 @@ function _M.on_load()
 end
 
 ---@param state SignalsCacheState
+---@param main_uid uid
 ---@return boolean|nil true if all entities are valid
-function _M.check_signal_cache_entities(state)
+function _M.check_signal_cache_entities(state, main_uid)
 	if not state then return end
 	for i=1,#LAMP_TYPES do
 		local lamp = state.__cache_entities[LAMP_TYPES[i]]
-		if lamp and not lamp.valid then return end
+		if lamp and not lamp.valid then
+			log({"", "Signal cache dropped due to invalid entity ", main_uid})
+			_M.cache.drop(main_uid)
+			return
+		end
 	end
 	return true
 end -- currently the highest computational cost for entity validty check

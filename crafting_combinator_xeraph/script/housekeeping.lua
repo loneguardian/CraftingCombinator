@@ -86,6 +86,7 @@ local function cleanup()
     -- global data cleanup
 
     log({"", "Old main_uid_by_part_uid ", table_size(global.main_uid_by_part_uid)})
+
     -- reset main_uid_by_part_uid
     for k in pairs(global.main_uid_by_part_uid) do
         global.main_uid_by_part_uid[k] = nil
@@ -177,7 +178,7 @@ local function cleanup()
         local entity_name = entity.name
         if not proc_data[entity_name].main then goto next_entity end
         local uid = entity.unit_number
-        if not proc_data[entity_name].global_data[uid] then -- cc/rc state not found
+        if not rawget(proc_data[entity_name].global_data, uid) then -- cc/rc state not found
             local control = proc_data[entity_name].main_control
             local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
             local migrated_state
@@ -227,14 +228,17 @@ local function cleanup()
         ::next_entity::
     end
 
-    -- regenerate global.cc/rc.ordered
-    global.cc.ordered = {}
-    for _, state in pairs(global.cc.data) do
-        table.insert(global.cc.ordered, state)
-    end
-    global.rc.ordered = {}
-    for _, state in pairs(global.rc.data) do
-        table.insert(global.rc.ordered, state)
+    -- reset global.cc/rc.ordered
+    local data_list = {global.cc.data, global.rc.data}
+    local ordered_list = {global.cc.ordered, global.rc.ordered}
+    for i=1,#ordered_list do
+        local global_ordered = ordered_list[i]
+        for j=1,#global_ordered do
+            global_ordered[j] = nil
+        end
+        for _, state in pairs(data_list[i]) do
+            global_ordered[#global_ordered+1] = state
+        end
     end
 
     game.print({"crafting_combinator.chat-message", {"", "Cleanup complete."}})
