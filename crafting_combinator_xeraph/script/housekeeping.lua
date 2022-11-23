@@ -222,7 +222,7 @@ local function cleanup()
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " CC state(s) has been created with default settings."}})
     end
     if count.rc_data_created > 0 then
-        game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " RC state(s) has been created with default settings."}})
+        game.print({"crafting_combinator.chat-message", {"", "a total of ", count.rc_data_created, " RC state(s) has been created with default settings."}})
     end
 
     -- remaining entities in the table
