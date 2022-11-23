@@ -177,7 +177,7 @@ local function cleanup()
         local entity_name = entity.name
         if not proc_data[entity_name].main then goto next_entity end
         local uid = entity.unit_number
-        if not proc_data[entity_name].global_data[uid] then -- cc/rc state not found
+        if not rawget(proc_data[entity_name].global_data, uid) then -- cc/rc state not found
             local control = proc_data[entity_name].main_control
             local part = entity.surface.find_entity(proc_data[entity_name].part_name, entity.position)
             local migrated_state
