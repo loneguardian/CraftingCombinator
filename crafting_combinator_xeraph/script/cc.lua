@@ -1,3 +1,4 @@
+local E = require "script.error-handling"
 local util = require 'script.util'
 local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
@@ -8,6 +9,15 @@ local table = table
 
 local _M = {}
 local combinator_mt = { __index = _M }
+
+-- index metamethod for global.cc.data to handle key not found cases
+local global_data_mt = {
+	__index = function(_, key)
+		local tname = "global.cc.data"
+		E.on_key_not_found(key, tname)
+	end,
+	__metatable = E
+}
 
 
 local CHEST_POSITION_NAMES = { 'behind', 'left', 'right', 'behind-left', 'behind-right' }
@@ -41,7 +51,9 @@ function _M.init_global()
 end
 
 function _M.on_load()
-	for _, combinator in pairs(global.cc.data) do setmetatable(combinator, combinator_mt); end
+	local global_data = global.cc.data
+	setmetatable(global_data, global_data_mt)
+	for _, combinator in pairs(global_data) do setmetatable(combinator, combinator_mt); end
 end
 
 -- Lifecycle events

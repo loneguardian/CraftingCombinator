@@ -1,3 +1,4 @@
+local E = require "script.error-handling"
 local config = require 'config'
 local util = require 'script.util'
 local gui = require 'script.gui'
@@ -7,6 +8,15 @@ local signals = require 'script.signals'
 ---@type RcState
 local _M = {}
 local combinator_mt = {__index = _M}
+
+-- index metamethod for global.cc.data to handle key not found cases
+local global_data_mt = {
+	__index = function(_, key)
+		local tname = "global.rc.data"
+		E.on_key_not_found(key, tname)
+	end,
+	__metatable = E
+}
 
 -- General housekeeping
 
@@ -46,7 +56,9 @@ function _M.get_rc_slot_count()
 end
 
 function _M.on_load()
-	for _, combinator in pairs(global.rc.data) do setmetatable(combinator, combinator_mt); end
+	local global_data = global.rc.data
+	setmetatable(global_data, global_data_mt)
+	for _, combinator in pairs(global_data) do setmetatable(combinator, combinator_mt); end
 end
 
 

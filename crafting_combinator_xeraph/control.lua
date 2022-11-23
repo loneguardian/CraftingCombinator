@@ -38,30 +38,6 @@ local function on_load(forced)
 	global_rc_ordered = global.rc.ordered
 	inserter_empty_queue = global.cc.inserter_empty_queue
 	latch_queue = global.cc.latch_queue
-
-	-- data metatable to handle key not found cases
-	local mt = {}
-	mt.on_key_not_found = function(key, tname)
-		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found", key, tname}})
-		game.print({"crafting_combinator.chat-message", {"crafting_combinator.err:key-not-found-report", key, tname}})
-		housekeeping.cleanup()
-	end
-	mt.cc_data = {
-		__index = function(_, key)
-			local tname = "global.cc.data"
-			mt.on_key_not_found(key, tname)
-		end,
-		__metatable = mt
-	}
-	mt.rc_data = {
-		__index = function(_, key)
-			local tname = "global.rc.data"
-			mt.on_key_not_found(key, tname)
-		end,
-		__metatable = mt
-	}
-	setmetatable(global.cc.data, mt.cc_data)
-	setmetatable(global.rc.data, mt.rc_data)
 	
 	if remote.interfaces['PickerDollies'] then
 		script.on_event(remote.call('PickerDollies', 'dolly_moved_entity_id'), function(event)
@@ -91,9 +67,13 @@ script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
 	migration_helper.migrate(changes)
-	if next(late_migrations.__migrations) ~= nil then
-		late_migrations(changes)
-		on_load(true)
+	-- check for mod updates
+	if changes.mod_changes then
+		if changes.mod_changes.crafting_combinator_xeraph
+		and changes.mod_changes.crafting_combinator_xeraph.old_version then
+			late_migrations(changes)
+			on_load(true)
+		end
 	end
 	enable_recipes()
 end)
