@@ -287,6 +287,8 @@ function _M.destroy_entity_gui(unit_number)
 	end
 end
 
+---Procedure data for all the gui events handler
+---@type table<string, {state_type: "cc"|"rc"}>
 local get_proc = {
 	["crafting-combinator"] = {
 		state_type = "cc"
@@ -310,7 +312,10 @@ local get_handler = {
 			local gui_name, unit_number, element_name = _M.parse_entity_gui_name(element.name)
 			local state
 			local proc = get_proc[gui_name]
-			if proc then
+			if not proc then return end
+			if proc.state_type == "rc" then
+				return -- no on_click handler for rc
+			elseif proc.state_type == "cc" then
 				state = global[proc.state_type].data[unit_number]
 				if state and state:check_entities() then state:on_click(element_name, element) end
 			end
