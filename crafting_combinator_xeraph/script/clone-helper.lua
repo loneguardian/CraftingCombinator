@@ -14,11 +14,21 @@ local cc_control = require "script.cc"
 
 ---@type PhCombinatorList, PhCacheList, PhTimestampList, main_uid_by_part_uid
 local ph_combinator, ph_cache, ph_timestamp, main_uid_by_part_uid
+
+---@type GlobalCcData, GlobalCcOrdered, GlobalRcData, GlobalRcOrdered, GlobalSignalsCache
+local global_cc_data, global_cc_ordered, global_rc_data, global_rc_ordered, global_signals_cache
+
 local on_load = function()
     ph_combinator = global.clone_placeholder.combinator
     ph_cache = global.clone_placeholder.cache
     ph_timestamp = global.clone_placeholder.timestamp
     main_uid_by_part_uid = global.main_uid_by_part_uid
+
+    global_cc_data = global.cc.data
+    global_cc_ordered = global.cc.ordered
+    global_rc_data = global.rc.data
+    global_rc_ordered = global.rc.ordered
+    global_signals_cache = global.signals.cache
 end
 
 --- ph key lookup, used in update_ph()
@@ -64,7 +74,7 @@ local create_ph = function(ph_list, ph_type, old_main_uid, new_entity_name, curr
             ph.output_proxy = false
         end
     elseif ph_type == "cache" then
-        local old_cache_state = global.signals.cache[old_main_uid]
+        local old_cache_state = global_signals_cache[old_main_uid]
         if not old_cache_state then return end -- return when no old cache found
         for k in pairs(old_cache_state.__cache_entities) do -- old cache found, create keys based on signals cache
             ph[k] = false
@@ -125,7 +135,7 @@ local update_ph = function(ph, new_entity, old_uid, old_main_uid)
     if ph_combinator_key then
         update_ph_entity(ph, ph_combinator_key, new_entity)
     elseif new_entity_name == config.SIGNAL_CACHE_NAME then
-        local old_cache_state = global.signals.cache[old_main_uid]
+        local old_cache_state = global_signals_cache[old_main_uid]
         for ph_cache_key, entity in pairs(old_cache_state.__cache_entities) do
             if entity.unit_number == old_uid then
                 update_ph_entity(ph, ph_cache_key, new_entity)
@@ -135,6 +145,8 @@ local update_ph = function(ph, new_entity, old_uid, old_main_uid)
     end
 end
 
+---@param old_main_uid old_main_uid
+---@param clone_ph PhCombinatorList|PhCacheList
 local cleanup_ph = function(old_main_uid, clone_ph)
     clone_ph[old_main_uid] = nil
     clone_ph.count = clone_ph.count - 1
@@ -146,7 +158,8 @@ end
 ---@param ph PhCombinator | PhCache
 ---@param state_type StateType
 ---@param old_main_uid old_main_uid
-local verify_ph = function(ph, state_type, old_main_uid)
+---@param current? uint event.tick, required only for cc
+local verify_ph = function(ph, state_type, old_main_uid, current)
     -- loop through all keys, check for entity.valid
     for _, entity in pairs(ph) do
         if not(entity and entity.valid) then return end
@@ -160,30 +173,28 @@ local verify_ph = function(ph, state_type, old_main_uid)
     local new_main_uid = ph.entity.unit_number
     if state_type == "cc" then
         ---@type CcState
-        local state = util.deepcopy(global.cc.data[old_main_uid])
+        local state = util.deepcopy(global_cc_data[old_main_uid])
         state.entity = ph.entity
         state.entityUID = new_main_uid
         state.control_behavior = state.entity.get_or_create_control_behavior()
         state.module_chest = ph.module_chest
         state.inventories.module_chest = state.module_chest.get_inventory(defines.inventory.chest)
-        state:find_assembler() -- latch to assembler
-		state:find_chest() -- latch to chest
-        cc_control.update_chests(state.entity.surface, state.module_chest)
-        global.cc.data[new_main_uid] = state
-        table.insert(global.cc.ordered, state)
+        cc_control.schedule_action(1, state, current + 1)
+        global_cc_data[new_main_uid] = state
+        global_cc_ordered[#global_cc_ordered + 1] = state
     elseif state_type == "rc" then
         ---@type RcState
-        local state = util.deepcopy(global.rc.data[old_main_uid])
+        local state = util.deepcopy(global_rc_data[old_main_uid])
         state.entity = ph.entity
         state.entityUID = new_main_uid
         state.output_proxy = ph.output_proxy
         state.input_control_behavior = state.entity.get_or_create_control_behavior()
         state.control_behavior = state.output_proxy.get_or_create_control_behavior()
-        global.rc.data[new_main_uid] = state
-        table.insert(global.rc.ordered, state)
+        global_rc_data[new_main_uid] = state
+        global_rc_ordered[#global_rc_ordered + 1] = state
     elseif state_type == "cache" then
         ---@type SignalsCacheState
-        local state = util.deepcopy(global.signals.cache[old_main_uid])
+        local state = util.deepcopy(global_signals_cache[old_main_uid])
         state.__entity = ph.entity
         for lamp_type, lamp in pairs(ph) do
             if lamp_type ~= "entity" then
@@ -191,13 +202,13 @@ local verify_ph = function(ph, state_type, old_main_uid)
                 state[lamp_type].__cb = lamp.get_or_create_control_behavior()
             end
         end
-        global.signals.cache[new_main_uid] = state
+        global_signals_cache[new_main_uid] = state
     end
 
     -- update main_uid_by_part_uid
     for k, part in pairs(ph) do
         if not(k == "entity") then
-            global.main_uid_by_part_uid[part.unit_number] = new_main_uid
+            main_uid_by_part_uid[part.unit_number] = new_main_uid
         end
     end
 
@@ -219,18 +230,16 @@ local on_entity_cloned = function(event)
     local state_type = get_state_type[new_entity_name]
     local current = event.tick
 
-    -- if ph_type == main, it will trigger combinator + cache ph
+    if not (ph_type and state_type) then return end
 
-    if ph_type == 'combinator-main' or ph_type == 'cache' then
-        local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
-        ---@cast ph PhCombinator|PhCache
-        update_ph(ph, new_entity, old_uid, old_main_uid)
-        verify_ph(ph, state_type, old_main_uid)
-    end
-
+    local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
+    ---@cast ph PhCombinator|PhCache
+    update_ph(ph, new_entity, old_uid, old_main_uid)
+    verify_ph(ph, state_type, old_main_uid, current)
+    
+    -- if ph_type == combinator-main, it should trigger cache ph methods
     if ph_type == "combinator-main" then
-        -- cache for main
-        local ph, old_main_uid = get_ph('cache', old_uid, nil, current)
+        ph, old_main_uid = get_ph('cache', old_uid, nil, current)
         ---@cast ph PhCache|nil
         if ph then
             update_ph(ph, new_entity, old_uid, old_main_uid)
@@ -272,8 +281,23 @@ local periodic_clean_up = function(event)
     end
 end
 
-return {
+local _M = {
     on_load = on_load,
     on_nth_tick = periodic_clean_up,
     on_entity_cloned = on_entity_cloned
 }
+
+if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
+	_M.unit_test = {
+        create_ph = create_ph,
+        get_ph = get_ph,
+        update_ph = update_ph,
+        verify_ph = verify_ph,
+        cleanup_ph = cleanup_ph,
+        periodic_clean_up = periodic_clean_up,
+        get_ph_type = get_ph_type,
+        get_state_type = get_state_type
+    }
+end
+
+return _M
