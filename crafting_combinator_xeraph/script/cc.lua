@@ -776,10 +776,11 @@ function _M:find_assembler()
 end
 
 function _M:find_chest()
+	---@cast self CcState
 	local direction = util.direction(self.entity.direction):rotate(CHEST_DIRECTIONS[self.settings.chest_position])
 	self.chest = self.entity.surface.find_entities_filtered {
 		position = util.position(self.entity.position):shift(direction, config.CHEST_DISTANCE),
-		type = { 'container', 'logistic-container' },
+		type = { 'container', 'logistic-container', 'infinity-container' },
 	}[1]
 	self.inventories.chest = self.chest and self.chest.get_inventory(defines.inventory.chest)
 end
