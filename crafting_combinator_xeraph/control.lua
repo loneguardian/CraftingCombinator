@@ -68,22 +68,26 @@ script.on_load(on_load)
 script.on_configuration_changed(function(changes)
 	local is_original_removed = false
 	local is_init = false
+	
 	-- is original mod removed?
 	if (changes.mod_changes.crafting_combinator) and (not changes.mod_changes.crafting_combinator.new_version) then
 		is_original_removed = true
 	end
-	-- is init?
+
+	-- is this the initial run?
 	if (changes.mod_changes.crafting_combinator_xeraph) and (not changes.mod_changes.crafting_combinator_xeraph.old_version) then
 		is_init = true
 	end
+
 	-- original to fork migration
 	if is_init and is_original_removed then migration_helper.migrate() end
-	if not is_init then
-		if next(late_migrations.__migrations) ~= nil then
-			late_migrations(changes)
-			on_load(true)
-		end
+
+	-- if not initial run and migration script loaded, apply migration and force on_load
+	if (not is_init) and (next(late_migrations.__migrations) ~= nil) then
+		late_migrations(changes)
+		on_load(true)
 	end
+
 	enable_recipes()
 end)
 
