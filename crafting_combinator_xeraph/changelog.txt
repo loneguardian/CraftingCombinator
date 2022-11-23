@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
-Date: ????
+Date: 2022-11-23
+  Bugfixes:
+    - Fixes migration application and setmetatable conditions (hopefully)
   Changes:
+    - Disables update() for cc after cloning until after latching. This should prevent unwanted behaviour if cc updates before latching.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2022-11-23

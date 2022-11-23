@@ -205,6 +205,7 @@ local function cleanup()
             end
             local state = control.create(entity, nil, migrated_state, true)
             if entity_name == config.CC_NAME then
+                control.schedule_action(1, state ,current + 1)
                 count.cc_data_created = count.cc_data_created + 1
             elseif entity_name == config.RC_NAME then
                 count.rc_data_created = count.rc_data_created + 1

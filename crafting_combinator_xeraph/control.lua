@@ -269,9 +269,10 @@ script.on_event(defines.events.on_tick, function(event)
 		if queue then
 			for i=1,#queue do
 				local state = queue[i]
-				if state:check_entities() then
-					state:find_assembler() -- latch to assembler
-					state:find_chest() -- latch to chest
+				if state.entity.valid then -- only using simple entity check because the state could have been already dropped
+					state:find_assembler()
+					state:find_chest()
+					state.enabled = true -- enables update()
 				end
 				global_cc.queue_count = global_cc.queue_count - 1
 			end

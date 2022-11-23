@@ -71,6 +71,7 @@ end
 function _M.schedule_action(action_type, obj, tick)
 	local queue_list
 	if action_type == 1 then
+		obj.enabled = false -- disables update() until finish latching
 		queue_list = global.cc.latch_queue.state
 	elseif action_type == 2 then
 		queue_list = global.cc.latch_queue.container
