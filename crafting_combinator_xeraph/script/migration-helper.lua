@@ -1,4 +1,3 @@
-local config = require 'config'
 local cc_control = require 'script.cc'
 local rc_control = require 'script.rc'
 local signals = require 'script.signals'
@@ -74,13 +73,8 @@ local migrate_by_remote_data = function()
 end
 
 return {
-    migrate = function(changes)
-        ---@cast changes ConfigurationChangedData
-        if not (changes and changes.mod_changes) then return end
-        if (changes.mod_changes.crafting_combinator and (not changes.mod_changes.crafting_combinator.new_version)) -- original mod removed
-        and (changes.mod_changes.crafting_combinator_xeraph and (not changes.mod_changes.crafting_combinator_xeraph.old_version)) then -- xeraph fork added
-            migrate_by_remote_data()
-            housekeeping.cleanup()
-        end
+    migrate = function()
+        migrate_by_remote_data()
+        housekeeping.cleanup()
     end
 }

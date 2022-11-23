@@ -47,7 +47,7 @@ function _M.init_global()
 	global.cc.ordered = global.cc.ordered or {}
 	global.cc.inserter_empty_queue = global.cc.inserter_empty_queue or {}
 	global.cc.latch_queue = global.cc.latch_queue or {state = {}, assembler = {}, container = {}}
-	global.cc.queue_count = 0
+	global.cc.queue_count = global.cc.queue_count or 0
 end
 
 function _M.on_load()
@@ -71,6 +71,7 @@ end
 function _M.schedule_action(action_type, obj, tick)
 	local queue_list
 	if action_type == 1 then
+		obj.enabled = false -- disables update() until finish latching
 		queue_list = global.cc.latch_queue.state
 	elseif action_type == 2 then
 		queue_list = global.cc.latch_queue.container
@@ -87,11 +88,12 @@ function _M.schedule_action(action_type, obj, tick)
 	end
 end
 
----Create method for cc state
+---Create method for cc state, returns the created state
 ---@param entity LuaEntity
 ---@param tags? Tags
 ---@param migrated_state? table
 ---@param skip_latch? boolean
+---@return CcState
 function _M.create(entity, tags, migrated_state, skip_latch)
 	---@type CcState
 	local combinator = setmetatable({
@@ -138,6 +140,8 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 		-- Other combinators can use the module chest as overflow output, so let them know it's there
 		_M.update_chests(entity.surface, combinator.module_chest)
 	end
+
+	return combinator
 end
 
 -- Deconstruction handlers
@@ -180,7 +184,7 @@ function _M.destroy(entity)
 end
 
 ---Called when a cc entity is mined by player during on_player_mined_entity
----@param uid integer uid for cc entity
+---@param uid uid uid for cc entity
 ---@param player_index integer
 ---@return boolean true when successfully mined
 function _M.mine_module_chest(uid, player_index)

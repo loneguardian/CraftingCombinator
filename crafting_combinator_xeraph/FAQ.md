@@ -11,4 +11,4 @@ The following is a list of known issues that **cannot** be fixed in a practical 
 Mod time usage scales with the number of crafting or recipe combinators in the map. If you have a lot of crafting or recipe combinators, you can reduce the workload/time usage by increasing the update cycle in mod settings (default: 60 ticks per update)
 
 # What am I working on currently? #
-Nothing besides bugfixes
+No new features, mainly focusing on stability and performance

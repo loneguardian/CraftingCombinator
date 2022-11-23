@@ -66,11 +66,20 @@ end)
 script.on_load(on_load)
 
 script.on_configuration_changed(function(changes)
-	migration_helper.migrate(changes)
-	-- check for mod updates
-	if changes.mod_changes then
-		if changes.mod_changes.crafting_combinator_xeraph
-		and changes.mod_changes.crafting_combinator_xeraph.old_version then
+	local is_original_removed = false
+	local is_init = false
+	-- is original mod removed?
+	if (changes.mod_changes.crafting_combinator) and (not changes.mod_changes.crafting_combinator.new_version) then
+		is_original_removed = true
+	end
+	-- is init?
+	if (changes.mod_changes.crafting_combinator_xeraph) and (not changes.mod_changes.crafting_combinator_xeraph.old_version) then
+		is_init = true
+	end
+	-- original to fork migration
+	if is_init and is_original_removed then migration_helper.migrate() end
+	if not is_init then
+		if next(late_migrations.__migrations) ~= nil then
 			late_migrations(changes)
 			on_load(true)
 		end
@@ -260,9 +269,10 @@ script.on_event(defines.events.on_tick, function(event)
 		if queue then
 			for i=1,#queue do
 				local state = queue[i]
-				if state:check_entities() then
-					state:find_assembler() -- latch to assembler
-					state:find_chest() -- latch to chest
+				if state.entity.valid then -- using only simple entity check because the state could have already been dropped
+					state:find_assembler()
+					state:find_chest()
+					state.enabled = true -- enables update()
 				end
 				global_cc.queue_count = global_cc.queue_count - 1
 			end

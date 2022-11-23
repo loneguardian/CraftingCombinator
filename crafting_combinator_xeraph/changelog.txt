@@ -1,10 +1,26 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.2
+Date: ????
+  Changes:
+---------------------------------------------------------------------------------------------------
+Version: 0.3.1
+Date: 2022-11-23
+  Bugfixes:
+    - Fixes migration application and setmetatable conditions (finally, I hope?). P/S: why is migration applied after on_init?
+  Changes:
+    - Disables update() for newly cloned and created ccs (by housekeeping module) until after latching. This should prevent unwanted behaviour if cc updates before latching
+---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2022-11-23
+  Bugfixes:
+    - Mod entities deleted by the "Remove all entities" and "Delete surface" button in editor no longer crashes the mod
   Changes:
     - Implements entity validity check before every combinator updates, mod's time usage is expected to increase about 10-20%
-    - This change is deemed necessary as it allows the mod to handle and notify user when the mod entities were incorrectly changed by other mods
-    - As a result, entities deleted by using the "Remove all entities" button no longer crashes the mod
+    - This change is deemed necessary for stability reasons as it allows the mod to handle entity anomalies and notify user when mod entities were incorrectly handled by other mods (or editor)
+  Control:
+    - Ccs, assemblers and containers now perform their latching actions one-tick after their cloning events have been handled
+    - This solves the problem of entities possibly latching on to combinators without a state due to unknown cloning order
+    - Delaying the find_chest() and find_assembler() calls by one tick should help with smoothening the UPS spike caused by area/brush cloning
   Locale:
     - Updated strings for blueprint.delayed-transfer to inform mod limitation while updating blueprints
     - Missing translation for new keys: crafting_combinator.err

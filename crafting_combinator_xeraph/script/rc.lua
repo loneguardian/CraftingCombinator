@@ -5,7 +5,6 @@ local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
----@type RcState
 local _M = {}
 local combinator_mt = {__index = _M}
 
@@ -98,6 +97,8 @@ function _M.create(entity, tags, migrated_state)
 	global.main_uid_by_part_uid[combinator.output_proxy.unit_number] = combinator.entityUID
 	global.rc.data[entity.unit_number] = combinator
 	table.insert(global.rc.ordered, combinator)
+
+	return combinator
 end
 
 ---Destroy method for rc state

@@ -37,21 +37,6 @@ local lamp_type_by_new_uid = {}
 before_all(function()
     local events_by_spec_name = spec.events_by_spec_name
 
-    -- clear all states and lookup
-    local global_states = {
-        global.cc.data,
-        global.cc.ordered,
-        global.rc.data,
-        global.rc.ordered,
-        global.main_uid_by_part_uid,
-        global.signals.cache
-    }
-    for i=1,#global_states do
-        for k in pairs(global_states[i]) do
-            global_states[i][k] = nil
-        end
-    end
-
     --  randomise uid for all entities in event_list
     for _, events in pairs(events_by_spec_name) do
         for i=1,#events do
@@ -121,6 +106,30 @@ before_all(function()
     end
 end)
 
+after_all(function()
+     -- clear all states and lookup
+     local global_dict = {
+        global.cc.data,
+        global.rc.data,
+        global.main_uid_by_part_uid,
+        global.signals.cache
+    }
+    local global_list = {
+        global.cc.ordered,
+        global.rc.ordered
+    }
+    for i=1,#global_dict do
+        for k in pairs(global_dict[i]) do
+            global_dict[i][k] = nil
+        end
+    end
+    for i=1,#global_list do
+        for j = 1, #global_list[i] do
+            global_list[i][j] = nil
+        end
+    end
+end)
+
 
 local get_ph_components = {
     cc = {"module_chest"}, -- compulsory
@@ -147,7 +156,6 @@ test.each(spec.test_list, "%s", function(_, events)
         state_type = clone.unit_test.get_state_type[event.destination.name]
         ph_type = clone.unit_test.get_ph_type[event.destination.name]
         current = event.tick
-
 
 -- get_ph()
 

@@ -44,6 +44,19 @@ local function cleanup()
         }
     }
 
+    ---Procedure data for refactored function
+    ---@class proc_data
+    ---@field main? boolean whether this is a main entity
+    ---@field part? boolean whether this is a part entity
+    ---@field part_name string entity name for the corresponding part
+    ---@field part_key "module_chest"|"output_proxy" key to be used in construction of `migrated_state` for create() method
+    ---@field check_global boolean whether to include this entity for check_global, only one per global_data is selected
+    ---@field global_data GlobalCcData|GlobalRcData|GlobalSignalsCache reference to global data
+    ---@field main_control? table # reference to respective main modules
+    ---@field stat_key string key to be used to record statistics
+
+    ---`Key`: Entity name, `Value`: Procedure data for this entity
+    ---@type table<string,proc_data>
     local proc_data = {
         [config.CC_NAME] = {
             main = true,
@@ -154,6 +167,8 @@ local function cleanup()
 
     -- cc/rc: try to create global data
     -- signal lamp: try to link
+
+    ---@type LuaEntity[]
     local all_cc_entities = get_all_cc_entities()
 
     -- loop through for signal lamps - they should be linked before cc/rc:update is called
@@ -172,6 +187,8 @@ local function cleanup()
         ::next_entity::
     end
 
+    local current = game.tick
+
     -- loop through for cc/rc
     for i = #all_cc_entities, 1, -1 do
         local entity = all_cc_entities[i]
@@ -186,13 +203,14 @@ local function cleanup()
                 migrated_state = {[proc_data[entity_name].part_key] = part}
                 global.main_uid_by_part_uid[part.unit_number] = uid
             end
-            control.create(entity, nil, migrated_state)
+            local state = control.create(entity, nil, migrated_state, true)
             if entity_name == config.CC_NAME then
+                control.schedule_action(1, state ,current + 1)
                 count.cc_data_created = count.cc_data_created + 1
             elseif entity_name == config.RC_NAME then
                 count.rc_data_created = count.rc_data_created + 1
             end
-            proc_data[entity_name].global_data[uid]:update(true, game.tick)
+            state:update(true, current)
         end
         table.remove(all_cc_entities, i)
         ::next_entity::
@@ -204,7 +222,7 @@ local function cleanup()
         game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " CC state(s) has been created with default settings."}})
     end
     if count.rc_data_created > 0 then
-        game.print({"crafting_combinator.chat-message", {"", "a total of ", count.cc_data_created, " RC state(s) has been created with default settings."}})
+        game.print({"crafting_combinator.chat-message", {"", "a total of ", count.rc_data_created, " RC state(s) has been created with default settings."}})
     end
 
     -- remaining entities in the table
