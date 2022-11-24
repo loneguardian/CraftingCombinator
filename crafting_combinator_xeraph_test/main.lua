@@ -1,9 +1,10 @@
 require("__testorio__.init")({
+    "data.lifecycle",
+    --"unit-test.gui",
     "unit-test.clone-helper",
     "data.error-handling",
     "entity.cc"
-    -- TODO: GUI handler tests
 },
 {
-    log_passed_tests = false
+    --log_passed_tests = false
 })
