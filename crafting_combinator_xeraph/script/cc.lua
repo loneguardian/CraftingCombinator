@@ -755,14 +755,15 @@ function _M:empty_inserters()
 end
 
 function _M:find_assembler()
+	local old_assembler = self.assembler
 	self.assembler = self.entity.surface.find_entities_filtered {
 		position = util.position(self.entity.position):shift(self.entity.direction, config.ASSEMBLER_DISTANCE),
 		type = 'assembling-machine',
 	}[1]
+	if self.assembler == old_assembler then return end
 	if self.assembler and self.assembler.prototype.fixed_recipe then
 		self.assembler = nil
 	end
-
 	if self.assembler then
 		self.inventories.assembler = {
 			output = self.assembler.get_inventory(defines.inventory.assembling_machine_output),
@@ -779,10 +780,12 @@ end
 function _M:find_chest()
 	---@cast self CcState
 	local direction = util.direction(self.entity.direction):rotate(CHEST_DIRECTIONS[self.settings.chest_position])
+	local old_chest = self.chest
 	self.chest = self.entity.surface.find_entities_filtered {
 		position = util.position(self.entity.position):shift(direction, config.CHEST_DISTANCE),
 		type = { 'container', 'logistic-container', 'infinity-container' },
 	}[1]
+	if self.chest == old_chest then return end
 	self.inventories.chest = self.chest and self.chest.get_inventory(defines.inventory.chest)
 end
 
