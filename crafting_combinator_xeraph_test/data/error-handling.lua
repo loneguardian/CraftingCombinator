@@ -12,12 +12,12 @@ local gui_events = {
 describe("global cc/rc data", function()
     ---@type luassert.match
     local match = require("__testorio__.luassert.match")
-    local state_type = {"cc","rc"}
+    local state_names = {"cc","rc"}
     local test_key = "non-existent key"
     local mt
 
-    for i=1,#state_type do
-        local state_name = state_type[i]
+    for i=1,#state_names do
+        local state_name = state_names[i]
         local global_data
         test("get mt: " .. state_name .. " global data", function()
             global_data = global[state_name].data
@@ -65,6 +65,7 @@ describe("global cc/rc data", function()
             }
             describe("gui key not found", function()
                 for k, event_name in pairs(gui_events) do
+                    if state_name == "rc" and event_name == defines.events.on_gui_click then goto next_event end
                     test(k, function()
                         test_event.name = event_name
                         test_event.entity.name = get_entity_name[state_name]
@@ -73,6 +74,7 @@ describe("global cc/rc data", function()
                         assert.spy(mt.on_key_not_found).was_called()
                         assert.spy(mt.on_key_not_found).was_called_with(-1, match.Matches(state_name))
                     end)
+                    ::next_event::
                 end
             end)
         end)

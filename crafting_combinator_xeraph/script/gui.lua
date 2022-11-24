@@ -383,4 +383,10 @@ function _M.gui_event_handler(event)
 	if handler then	return handler(event) end
 end
 
+if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
+	_M.unit_test = {
+        get_handler = get_handler
+	}
+end
+
 return _M

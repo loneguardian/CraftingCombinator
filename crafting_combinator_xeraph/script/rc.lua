@@ -54,8 +54,9 @@ function _M.get_rc_slot_count()
 	return _rc_slot_count
 end
 
-function _M.on_load()
+function _M.on_load(skip_set_mt)
 	local global_data = global.rc.data
+	if skip_set_mt then return end
 	setmetatable(global_data, global_data_mt)
 	for _, combinator in pairs(global_data) do setmetatable(combinator, combinator_mt); end
 end

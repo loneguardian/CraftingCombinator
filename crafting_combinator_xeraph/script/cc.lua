@@ -50,8 +50,9 @@ function _M.init_global()
 	global.cc.queue_count = global.cc.queue_count or 0
 end
 
-function _M.on_load()
+function _M.on_load(skip_set_mt)
 	local global_data = global.cc.data
+	if skip_set_mt then return end
 	setmetatable(global_data, global_data_mt)
 	for _, combinator in pairs(global_data) do setmetatable(combinator, combinator_mt); end
 end

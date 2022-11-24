@@ -142,88 +142,90 @@ local get_ph_components = {
     }
 }
 
-test.each(spec.test_list, "%s", function(_, events)
-    for i=1,#events do
-        ---@type EventData.on_entity_cloned
-        local event = events[i]
-
-        ---@type uid, LuaEntity, string, StateType, ph_type, uint
-        local old_uid, new_entity, new_entity_name, state_type, ph_type, current
-        
-        old_uid = event.source.unit_number
-        new_entity = event.destination
-        new_entity_name = new_entity.name
-        state_type = clone.unit_test.get_state_type[event.destination.name]
-        ph_type = clone.unit_test.get_ph_type[event.destination.name]
-        current = event.tick
-
--- get_ph()
-
-        local ph, old_main_uid = clone.unit_test.get_ph(ph_type, old_uid, new_entity_name, current)
-
-        -- if ph_type is combinator_main then uid should be same
-        if ph_type == "combinator-main" then
-            assert.are_equal(old_uid, old_main_uid)
-        end
-
-        -- ph must have entity as key
-        assert.is_false(ph.entity)
-
-        -- check other ph components
-        local ph_components = get_ph_components[state_type]
-        if state_type == "cc" or state_type == "rc" then
-            local counter = #ph_components
-            local extra = 0
-            for k in pairs(ph) do
-                if k == "entity" then goto next_key end
-                for j = 1,#ph_components do
-                    local component_name = ph_components[j]
-                    if k == component_name then
-                        counter = counter - 1
+describe.each(spec.test_list, "on_entity_cloned", function(spec_name, events)
+    test(spec_name, function()
+        for i=1,#events do
+            ---@type EventData.on_entity_cloned
+            local event = events[i]
+    
+            ---@type uid, LuaEntity, string, StateType, ph_type, uint
+            local old_uid, new_entity, new_entity_name, state_type, ph_type, current
+            
+            old_uid = event.source.unit_number
+            new_entity = event.destination
+            new_entity_name = new_entity.name
+            state_type = clone.unit_test.get_state_type[event.destination.name]
+            ph_type = clone.unit_test.get_ph_type[event.destination.name]
+            current = event.tick
+    
+    -- get_ph()
+    
+            local ph, old_main_uid = clone.unit_test.get_ph(ph_type, old_uid, new_entity_name, current)
+    
+            -- if ph_type is combinator_main then uid should be same
+            if ph_type == "combinator-main" then
+                assert.are_equal(old_uid, old_main_uid)
+            end
+    
+            -- ph must have entity as key
+            assert.is_false(ph.entity)
+    
+            -- check other ph components
+            local ph_components = get_ph_components[state_type]
+            if state_type == "cc" or state_type == "rc" then
+                local counter = #ph_components
+                local extra = 0
+                for k in pairs(ph) do
+                    if k == "entity" then goto next_key end
+                    for j = 1,#ph_components do
+                        local component_name = ph_components[j]
+                        if k == component_name then
+                            counter = counter - 1
+                        else
+                            extra = extra + 1
+                        end
+                    end
+                    ::next_key::
+                end
+                -- must match all components
+                assert.is_true(counter == 0)
+                -- must not have extra components
+                assert.is_true(extra == 0)
+            elseif state_type == "cache" then
+                local counter = 0
+                local extra = 0
+                for k in pairs(ph) do
+                    if k == "entity" then goto next_key end
+                    if ph_components[k] then
+                        counter = counter + 1
                     else
                         extra = extra + 1
                     end
+                    ::next_key::
                 end
-                ::next_key::
+                -- must have at least one component
+                assert.is_true(counter > 0)
+                -- must not have extra components
+                assert.is_true(extra == 0)
             end
-            -- must match all components
-            assert.is_true(counter == 0)
-            -- must not have extra components
-            assert.is_true(extra == 0)
-        elseif state_type == "cache" then
-            local counter = 0
-            local extra = 0
-            for k in pairs(ph) do
-                if k == "entity" then goto next_key end
-                if ph_components[k] then
-                    counter = counter + 1
-                else
-                    extra = extra + 1
+    
+            if ph then
+    
+    -- update_ph()
+    
+                clone.unit_test.update_ph(ph, new_entity, old_uid, old_main_uid)
+    
+                local entity_key = entity_key_by_new_uid[new_entity.unit_number]
+                local updated_entity
+                if entity_key then
+                    updated_entity = ph[entity_key]
+                else -- cache
+                    local lamp_type = lamp_type_by_new_uid[new_entity.unit_number]
+                    updated_entity = ph[lamp_type]
                 end
-                ::next_key::
+                --check whether same entity has been registered in the ph
+                assert.are_equal(new_entity, updated_entity)
             end
-            -- must have at least one component
-            assert.is_true(counter > 0)
-            -- must not have extra components
-            assert.is_true(extra == 0)
         end
-
-        if ph then
-
--- update_ph()
-
-            clone.unit_test.update_ph(ph, new_entity, old_uid, old_main_uid)
-
-            local entity_key = entity_key_by_new_uid[new_entity.unit_number]
-            local updated_entity
-            if entity_key then
-                updated_entity = ph[entity_key]
-            else -- cache
-                local lamp_type = lamp_type_by_new_uid[new_entity.unit_number]
-                updated_entity = ph[lamp_type]
-            end
-            --check whether same entity has been registered in the ph
-            assert.are_equal(new_entity, updated_entity)
-        end
-    end
+    end)
 end)
