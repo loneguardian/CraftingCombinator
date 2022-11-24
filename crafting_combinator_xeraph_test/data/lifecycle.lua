@@ -9,7 +9,14 @@ local late_migrations_template = {__migrations = {}, __ordered = {}, __versioned
 
 --- dummy ConfigurationChangedData
 local change_data = {
-    init_remove_old = {
+    init_only = {
+        mod_changes = {
+            crafting_combinator_xeraph = {
+                new_version = true
+            }
+        }
+    },
+    init_remove_original = {
         mod_changes = {
             crafting_combinator = {
                 old_version = true
@@ -123,19 +130,28 @@ describe("on_init", function()
         asserts_all()
     end
 
-    test("with migration", function()
-        control.on_init()
-        populate_migrations() -- migration files are loaded after on_init
-        mock_migrations()
-        asserts_on_init()
-    end)
+    describe("with migration", function ()
+        test("no conf changed", function()
+            control.on_init()
+            populate_migrations() -- migration files are loaded after on_init
+            mock_migrations()
+            asserts_on_init()
+        end)
+        
+        local conf_changed_tests = {
+            {"init only", change_data.init_only},
+            {"remove original", change_data.init_remove_original},
+        }
 
-    test("with migration - conf changed", function()
-        control.on_init()
-        populate_migrations()
-        mock_migrations()
-        control.on_configuration_changed(change_data.init_remove_old)
-        asserts_on_init()
+        describe("conf changed", function ()
+            test.each(conf_changed_tests, "%s", function(_, change)
+                control.on_init()
+                populate_migrations()
+                mock_migrations()
+                control.on_configuration_changed(change)
+                asserts_on_init()
+            end)
+        end)
     end)
 end)
 
