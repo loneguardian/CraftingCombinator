@@ -7,12 +7,7 @@ local original = {
 
 local late_migrations_template = {__migrations = {}, __ordered = {}, __versioned = {}}
 
-local function populate_migrations()
-    late_migrations["0.0.1"] = function() return true end
-    late_migrations["0.0.2"] = function() return true end
-    late_migrations["random_name"] = function() return true end
-end
-
+--- dummy ConfigurationChangedData
 local change_data = {
     init_remove_old = {
         mod_changes = {
@@ -69,51 +64,78 @@ local function deepcopy(object, skip_metatable)
     return _copy(object)
 end
 
+local late_migrations_mt
+
 before_all(function()
     control = _G.crafting_combinator_xeraph_lifecycle_test
-end)
 
-before_each(function()
     -- store original references
     original.global = global
     original.late_migrations = late_migrations
+    late_migrations_mt = getmetatable(late_migrations)
+end)
 
+before_each(function()
     -- replace late_migrations table
-    late_migrations = setmetatable(deepcopy(late_migrations_template), getmetatable(late_migrations))
+    late_migrations = setmetatable(deepcopy(late_migrations_template), late_migrations_mt)
 
     -- replace global table
     global = {}
 end)
 
 after_each(function()
+    -- restore global table reference for Testorio
+    global = original.global
+end)
+
+after_all(function()
     -- restore references
     global = original.global
     late_migrations = original.late_migrations
 
-    -- repeat on_load to redirect references to original global tables
+    -- on_load to redirect references to original global tables
     control.on_load(true, true)
 end)
 
+local function populate_migrations()
+    late_migrations["0.0.1"] = function() return true end
+    late_migrations["0.0.2"] = function() return true end
+    late_migrations["random_name"] = function() return true end
+end
+
+---List of asserts for all tests in this module
+local asserts_all = function()
+    -- test mt of global cc rc data
+    assert.is_truthy(getmetatable(global.cc.data))
+    assert.is_truthy(getmetatable(global.rc.data))
+end
+
 describe("on_init", function()
+    local migrations
+    local mock_migrations = function()
+        migrations = mock(late_migrations.__migrations)
+    end
+    local asserts_on_init = function()
+        -- assert that no late migration was applied
+        for _, migration in pairs(migrations) do
+            assert.spy(migration.apply).called(0)
+        end 
+        asserts_all()
+    end
+
     test("with migration", function()
         control.on_init()
-        populate_migrations()
-
-        -- test mt of global cc rc data
-        assert.is_truthy(getmetatable(global.cc.data))
-        assert.is_truthy(getmetatable(global.rc.data))
+        populate_migrations() -- migration files are loaded after on_init
+        mock_migrations()
+        asserts_on_init()
     end)
 
     test("with migration - conf changed", function()
         control.on_init()
-        populate_migrations() -- migration files are loaded after on_init
+        populate_migrations()
+        mock_migrations()
         control.on_configuration_changed(change_data.init_remove_old)
-
-        -- test mt of global cc rc data
-        assert.is_truthy(getmetatable(global.cc.data))
-        assert.is_truthy(getmetatable(global.rc.data))
-
-        -- TODO: make sure no late migration was applied?
+        asserts_on_init()
     end)
 end)
 
@@ -132,36 +154,52 @@ describe("on_load", function()
         {"no mod changes", change_data.load_no_mod_changes}
     }
 
-    local on_load_test_asserts = function()
+    local asserts_on_load = function()
         -- test mt of cc rc state
         assert.is_truthy(getmetatable(global.cc.data[1]))
         assert.is_truthy(getmetatable(global.rc.data[1]))
+        asserts_all()
     end
 
     describe("without migration", function()
         test("no conf changed", function()
             control.on_load()
+            asserts_on_load()
         end)
 
         describe("conf changed", function()
             test.each(conf_changed_tests, "%s", function(_, changes)
                 control.on_load()
                 control.on_configuration_changed(changes)
-                on_load_test_asserts()
+                asserts_on_load()
             end)
         end)
     end)
+    
+    local migrations
+    local mock_migrations = function()
+        migrations = mock(late_migrations.__migrations)
+    end
+
+    local asserts_migration_applied = function()
+        -- assert that each migration was applied once
+        for _, migration in pairs(migrations) do
+            assert.spy(migration.apply).called(1)
+        end
+    end
 
     describe("with migration", function()
         before_each(function ()
             populate_migrations() -- migration files are loaded before on_load
+            mock_migrations()
         end)
 
         describe("conf changed", function()
             test.each(conf_changed_tests, "%s", function(_, changes)
                 control.on_load()
                 control.on_configuration_changed(changes)
-                on_load_test_asserts()
+                asserts_migration_applied()
+                asserts_on_load()
             end)
         end)
     end)
@@ -171,8 +209,10 @@ describe("on_load", function()
     describe("hypothetical", function()
         test("migration only", function() -- conf changed bypassed by not updating version number
             populate_migrations()
+            mock_migrations()
             control.on_load()
-            on_load_test_asserts()
+            asserts_migration_applied()
+            asserts_on_load()
         end)
     end)
 end)
