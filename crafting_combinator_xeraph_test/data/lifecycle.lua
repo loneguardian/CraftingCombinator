@@ -91,7 +91,7 @@ after_each(function()
     late_migrations = original.late_migrations
 
     -- repeat on_load to redirect references to original global tables
-    control.on_load(true)
+    control.on_load(true, true)
 end)
 
 describe("on_init", function()

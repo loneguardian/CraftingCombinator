@@ -43,7 +43,8 @@ function _M.init_global()
 	global.signals.cache = global.signals.cache or {}
 end
 
-function _M.on_load()
+function _M.on_load(skip_set_mt)
+	if skip_set_mt then return end
 	for _, cache in pairs(global.signals.cache) do setmetatable(cache, cache_mt); end
 end
 

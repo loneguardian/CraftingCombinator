@@ -16,11 +16,13 @@ commands.add_command("crafting_combinator_xeraph", nil, housekeeping.cc_command)
 ---@type GlobalCc, GlobalCcOrdered, GlobalRcOrdered, InserterEmptyQueue, CcLatchQueue
 local global_cc, global_cc_ordered, global_rc_ordered, inserter_empty_queue, latch_queue
 
-local function on_load(forced)
+---@param forced boolean|nil
+---@param skip_set_mt boolean|nil Only used by test script to bypass setmetatable() calls
+local function on_load(forced, skip_set_mt)
 	if not forced and next(late_migrations.__migrations) ~= nil then return; end
-	cc_control.on_load()
-	rc_control.on_load()
-	signals.on_load()
+	cc_control.on_load(skip_set_mt)
+	rc_control.on_load(skip_set_mt)
+	signals.on_load(skip_set_mt)
 	clone_helper.on_load()
 
 	-- localise globals
