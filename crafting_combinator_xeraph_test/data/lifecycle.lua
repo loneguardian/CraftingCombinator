@@ -104,10 +104,15 @@ after_all(function()
     control.on_load(true, true)
 end)
 
+local migration_count = 0
+
 local function populate_migrations()
     late_migrations["0.0.1"] = function() return true end
     late_migrations["0.0.2"] = function() return true end
+    late_migrations["0.0.3"] = function() return true end
     late_migrations["random_name"] = function() return true end
+    late_migrations["random_name2"] = function() return true end
+    migration_count = table_size(late_migrations.__migrations)
 end
 
 ---List of asserts for all tests in this module
@@ -123,6 +128,7 @@ describe("on_init", function()
         migrations = mock(late_migrations.__migrations)
     end
     local asserts_on_init = function()
+        assert.are_equal(table_size(migrations), migration_count)
         -- assert that no late migration was applied
         for _, migration in pairs(migrations) do
             assert.spy(migration.apply).called(0)
@@ -198,10 +204,12 @@ describe("on_load", function()
     end
 
     local asserts_migration_applied = function()
+        assert.are_equal(table_size(migrations), migration_count)
         -- assert that each migration was applied once
         for _, migration in pairs(migrations) do
             assert.spy(migration.apply).called(1)
         end
+        asserts_on_load()
     end
 
     describe("with migration", function()
@@ -215,7 +223,6 @@ describe("on_load", function()
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_migration_applied()
-                asserts_on_load()
             end)
         end)
     end)
@@ -228,7 +235,6 @@ describe("on_load", function()
             mock_migrations()
             control.on_load()
             asserts_migration_applied()
-            asserts_on_load()
         end)
     end)
 end)
