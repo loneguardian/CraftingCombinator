@@ -56,7 +56,9 @@ end
 
 function _M.on_load()
 	local global_data = global.rc.data
-	setmetatable(global_data, global_data_mt)
+	if getmetatable(global_data) == nil then
+		setmetatable(global_data, global_data_mt)
+	end
 	for _, combinator in pairs(global_data) do setmetatable(combinator, combinator_mt); end
 end
 

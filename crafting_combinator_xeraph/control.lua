@@ -12,15 +12,6 @@ local clone_helper = require 'script.clone-helper'
 local housekeeping = require 'script.housekeeping'
 commands.add_command("crafting_combinator_xeraph", nil, housekeeping.cc_command)
 
-local function enable_recipes()
-	for _, force in pairs(game.forces) do
-		if force.technologies['circuit-network'].researched then
-			force.recipes[config.CC_NAME].enabled = true
-			force.recipes[config.RC_NAME].enabled = true
-		end
-	end
-end
-
 --- localise global tables for on_tick and on_entity_cloned
 ---@type GlobalCc, GlobalCcOrdered, GlobalRcOrdered, InserterEmptyQueue, CcLatchQueue
 local global_cc, global_cc_ordered, global_rc_ordered, inserter_empty_queue, latch_queue
@@ -56,16 +47,25 @@ local function init_global()
 	global.main_uid_by_part_uid = {}
 end
 
-script.on_init(function()
+local function on_init()
 	init_global()
 	cc_control.init_global()
 	rc_control.init_global()
 	signals.init_global()
 	on_load(true)
-end)
-script.on_load(on_load)
+end
 
-script.on_configuration_changed(function(changes)
+local function enable_recipes()
+	for _, force in pairs(game.forces) do
+		if force.technologies['circuit-network'].researched then
+			force.recipes[config.CC_NAME].enabled = true
+			force.recipes[config.RC_NAME].enabled = true
+		end
+	end
+end
+
+---@type fun(param1: ConfigurationChangedData)
+local function on_configuration_changed(changes)
 	local is_original_removed = false
 	local is_init = false
 	
@@ -89,7 +89,11 @@ script.on_configuration_changed(function(changes)
 	end
 
 	enable_recipes()
-end)
+end
+
+script.on_init(on_init)
+script.on_load(on_load)
+script.on_configuration_changed(on_configuration_changed)
 
 local function on_built(event)
 	local entity = event.created_entity or event.entity
@@ -401,4 +405,9 @@ script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
 
 if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
 	require "__crafting_combinator_xeraph_test__.main"
+	_G.crafting_combinator_xeraph_lifecycle_test = {
+		on_init = on_init,
+		on_load = on_load,
+		on_configuration_changed = on_configuration_changed
+	}
 end
