@@ -10,11 +10,6 @@
 
 ---< Global >---
 
----@type CraftingCombinatorGlobal
-__crafting_combinator_xeraph__global = nil
----@type CraftingCombinatorGlobal
-__crafting_combinator_xeraph_test__global = nil
-
 --<`Key`: old main uid, `Value`: event.tick>
 ---@alias PhTimestampList table<uid, uint>
 
@@ -70,13 +65,31 @@ __crafting_combinator_xeraph_test__global = nil
 ---<`Key`: part uid, `Value`: main uid>
 ---@alias main_uid_by_part_uid table<uid, uid>
 
+---@class CraftingCombinatorTagData
+---@field settings CcSettings|RcSettings
+
+---`Key`: string of <entity.position.x>.."|"..<entity.position.y>
+---@alias DelayedBlueprintTagsDictionary {[string]: {key: "crafting_combinator_data", tag_data: CraftingCombinatorTagData}}
+
+---@class PlayerDelayedBlueprintTagsState
+---@field is_queued boolean
+---@field data DelayedBlueprintTagsDictionary
+
+---@alias GlobalDelayedBlueprintTags {[PlayerIdentification]: PlayerDelayedBlueprintTagsState}
+
+---Global table for this mod
 ---@class CraftingCombinatorGlobal
----@field delayed_blueprint_tag_state table
+---@field delayed_blueprint_tag_state GlobalDelayedBlueprintTags
 ---@field cc GlobalCc
 ---@field rc GlobalRc
 ---@field signals {cache: GlobalSignalsCache}
 ---@field clone_placeholder GlobalClonePh
 ---@field main_uid_by_part_uid main_uid_by_part_uid
+
+---@type CraftingCombinatorGlobal
+__crafting_combinator_xeraph__global = nil
+---@type CraftingCombinatorGlobal
+__crafting_combinator_xeraph_test__global = nil
 
 -- CC State
 
