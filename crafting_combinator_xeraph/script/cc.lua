@@ -7,8 +7,10 @@ local signals = require 'script.signals'
 
 local table = table
 
+---@class CcControl
 local _M = {}
 local combinator_mt = { __index = _M }
+
 
 -- index metamethod for global.cc.data to handle key not found cases
 local global_data_mt = {
@@ -118,7 +120,7 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 		sticky = false,
 		allow_sticky = true,
 		unstick_at_tick = 0
-	}, combinator_mt)
+	}, combinator_mt) --[[@as CcState]]
 
 	combinator.module_chest.destructible = false
 	combinator.inventories.module_chest = combinator.module_chest.get_inventory(defines.inventory.chest)
@@ -186,7 +188,7 @@ end
 
 ---Called when a cc entity is mined by player during on_player_mined_entity
 ---@param uid uid uid for cc entity
----@param player_index integer
+---@param player_index uint
 ---@return boolean true when successfully mined
 function _M.mine_module_chest(uid, player_index)
 	if player_index then
@@ -295,7 +297,9 @@ function _M.check_entities(state)
 end
 
 ---Method to update CC state
----@param forced boolean Forced update clears control_behavior signals.
+---@param self CcState
+---@param forced? boolean Forced update clears control_behavior signals.
+---@param current_tick uint
 function _M:update(forced, current_tick)
 	if not self:check_entities() then return end
 	if forced then
@@ -324,6 +328,8 @@ function _M:update(forced, current_tick)
 	end
 end
 
+---@param self CcState
+---@param player_index uint
 function _M:open(player_index)
 	local root = gui.entity(self.entity, {
 		title_elements = {
@@ -358,6 +364,7 @@ function _M:open(player_index)
 	self:update_disabled_textboxes(root)
 end
 
+---@param self CcState
 ---@param name string
 ---@param is_selected boolean
 ---@param element LuaGuiElement
@@ -376,6 +383,7 @@ function _M:on_checked_changed(name, is_selected, element)
 	self:update_disabled_textboxes(gui.get_root(element))
 end
 
+---@param self CcState
 function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
@@ -404,11 +412,13 @@ function _M:update_disabled_textboxes(root)
 	self:disable_textbox(root, 'sticky:craft-n-before-switch', 'w')
 end
 
+---@param self CcState
 function _M:disable_checkbox(root, name, mode)
 	local checkbox = gui.find_element(root, gui.name(self.entity, name))
 	checkbox.enabled = self.settings.mode == mode
 end
 
+---@param self CcState
 function _M:disable_textbox(root, name, mode)
 	local caption = gui.find_element(root, gui.name(self.entity, name, "caption"))
 	local textbox = gui.find_element(root, gui.name(self.entity, name, "value"))
@@ -422,6 +432,7 @@ function _M:disable_textbox(root, name, mode)
 	end
 end
 
+---@param self CcState
 function _M:on_selection_changed(name, selected)
 	if name == 'title:chest-position:value' then
 		self.settings.chest_position = selected
@@ -429,6 +440,7 @@ function _M:on_selection_changed(name, selected)
 	end
 end
 
+---@param self CcState
 function _M:on_click(name, element)
 	if name == 'title:open-module-chest' then
 		game.get_player(element.player_index).opened = self.module_chest
@@ -437,6 +449,7 @@ end
 
 -- Other stuff
 
+---@param self CcState
 function _M:read_recipe(params)
 	local recipe = self.assembler.get_recipe()
 	if recipe then
@@ -448,6 +461,7 @@ function _M:read_recipe(params)
 	end
 end
 
+---@param self CcState
 function _M:read_speed(params)
 	local count = self.assembler.crafting_speed * 100
 	table.insert(params, {
@@ -457,6 +471,7 @@ function _M:read_speed(params)
 	})
 end
 
+---@param self CcState
 function _M:read_machine_status(params)
 	local signal = STATUS_SIGNALS[self.assembler.status or "A dummy string to avoid indexing by nil"]
 	if signal == nil then return end
@@ -467,6 +482,7 @@ function _M:read_machine_status(params)
 	})
 end
 
+---@param self CcState
 function _M:set_recipe(current_tick)
 	-- Check sticky state and return early if still sticky
 	if self.sticky then

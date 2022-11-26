@@ -5,6 +5,7 @@ local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
+---@class RcControl
 local _M = {}
 local combinator_mt = {__index = _M}
 
@@ -65,7 +66,6 @@ end
 -- Lifecycle events
 
 function _M.create(entity, tags, migrated_state)
-	---@type RcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -77,10 +77,10 @@ function _M.create(entity, tags, migrated_state)
 		},
 		input_control_behavior = (migrated_state and migrated_state.input_control_behavior) or entity.get_or_create_control_behavior(),
 		settings = util.merge_combinator_settings(config.RC_DEFAULT_SETTINGS, tags, migrated_state),
-		last_signal = false,
-		last_name = false,
-		last_count = false
-	}, combinator_mt)
+		last_signal = nil,
+		last_name = nil,
+		last_count = 0
+	}, combinator_mt) --[[@as RcState]]
 	
 	entity.connect_neighbour {
 		wire = defines.wire_type.red,
@@ -135,12 +135,13 @@ function _M.check_entities(state)
 	end
 end
 
+---@param self RcState
 function _M:update(forced)
 	if not self:check_entities() then return end
 	if forced then
-		self.last_signal = false
-		self.last_name = false
-		self.last_count = false
+		self.last_signal = nil
+		self.last_name = nil
+		self.last_count = 0
 	end
 	
 	if self.settings.mode == 'rec' or self.settings.mode == 'use' then self:find_recipe()
@@ -161,6 +162,7 @@ local function make_params(size)
 	return params
 end
 
+---@param self RcState
 function _M:find_recipe()
 	local changed, recipes, count, signal = recipe_selector.get_recipes(
 		self.entity, defines.circuit_connector_id.combinator_input,
@@ -196,6 +198,7 @@ function _M:find_recipe()
 	self.control_behavior.parameters = params
 end
 
+---@param self RcState
 function _M:find_ingredients_and_products()
 	local changed, recipe, input_count = recipe_selector.get_recipe(
 		self.entity,
@@ -242,7 +245,7 @@ function _M:find_ingredients_and_products()
 	self.control_behavior.parameters = params
 end
 
-
+---@param self RcState
 function _M:find_machines()
 	local changed, recipe, input_count = recipe_selector.get_recipe(
 		self.entity,
@@ -253,7 +256,6 @@ function _M:find_machines()
 	)
 	
 	if not changed then return; end
-	
 	self.last_name = recipe and recipe.name
 	self.last_count = input_count
 	
@@ -283,7 +285,7 @@ function _M:find_machines()
 	self.control_behavior.parameters = params
 end
 
-
+---@param self RcState
 function _M:open(player_index)
 	local root = gui.entity(self.entity, {
 		gui.section {
@@ -306,6 +308,7 @@ function _M:open(player_index)
 	self:update_disabled_checkboxes(root)
 end
 
+---@param self RcState
 function _M:on_checked_changed(name, is_selected, element)
 	local category, name = name:gsub(':.*$', ''), name:gsub('^.-:', ''):gsub('-', '_')
 	if category == 'mode' then
@@ -318,6 +321,7 @@ function _M:on_checked_changed(name, is_selected, element)
 	self:update(true)
 end
 
+---@param self RcState
 function _M:update_disabled_checkboxes(root)
 	self:disable_checkbox(root, 'misc:divide-by-output', 'divide_by_output',
 			(self.settings.mode == 'rec' or self.settings.mode == 'use') and not self.settings.differ_output)
@@ -328,6 +332,7 @@ function _M:update_disabled_checkboxes(root)
 			not self.settings.multiply_by_input)
 end
 
+---@param self RcState
 function _M:disable_checkbox(root, name, setting_name, enable, set_state)
 	set_state = set_state or false
 	local checkbox = gui.find_element(root, gui.name(self.entity, name))
@@ -338,6 +343,7 @@ function _M:disable_checkbox(root, name, setting_name, enable, set_state)
 	end
 end
 
+---@param self RcState
 function _M:on_text_changed(name, text)
 	if name == 'misc:time-multiplier:value' then
 		self.settings.time_multiplier = tonumber(text) or self.settings.time_multiplier
@@ -345,7 +351,7 @@ function _M:on_text_changed(name, text)
 	end
 end
 
-
+---@param self RcState
 function _M:update_inner_positions()
 	self.output_proxy.teleport(self.entity.position)
 end

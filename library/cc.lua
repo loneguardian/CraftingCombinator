@@ -104,7 +104,7 @@ __crafting_combinator_xeraph_test__global = nil
 
 ---@class CcSettings
 ---@field chest_position integer
----@field mode string
+---@field mode "w"|"r"
 ---@field wait_for_output_to_clear boolean
 ---@field discard_items boolean
 ---@field discard_fluids boolean
@@ -114,8 +114,9 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field read_machine_status boolean
 ---@field craft_until_zero boolean
 ---@field craft_n_before_switch integer
+---@field input_buffer_size integer
 
----@class CcState
+---@class CcState:CcControl
 ---@field entityUID uid Combinator entity's uid
 ---@field entity LuaEntity Combinator entity
 ---@field control_behavior LuaControlBehavior? Combinator's control behavior
@@ -123,19 +124,15 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field assembler LuaEntity Assembler entity associated to this CC
 ---@field settings CcSettings CC settings table
 ---@field inventories CcInventories
----@field items_to_ignore table ???
+---@field items_to_ignore table #?? not sure what's the purpose
 ---@field last_flying_text_tick integer
 ---@field enabled boolean
----@field last_recipe LuaRecipe|boolean|nil
----@field last_assembler_recipe LuaRecipe|boolean|nil
+---@field last_recipe LuaRecipe?
+---@field last_assembler_recipe LuaRecipe?
 ---@field read_mode_cb boolean
 ---@field sticky boolean
 ---@field allow_sticky boolean
 ---@field unstick_at_tick integer
----@field update function Method to update CC state
----@field find_assembler function
----@field find_chest function
----@field queue_latch function
 
 -- RC State
 
@@ -153,16 +150,20 @@ __crafting_combinator_xeraph_test__global = nil
 ---@field differ_output boolean
 ---@field time_multiplier number
 
----@class RcState
----@field entityUID uid Combinator entity's uid
----@field entity LuaEntity Combinator entity
+---@class RcState:RcControl
+---Combinator entity's uid
+---@field entityUID uid
+---Combinator LuaEntity
+---@field entity LuaEntity
 ---@field output_proxy LuaEntity
+---Output proxy's control behavior
 ---@field control_behavior LuaControlBehavior
+---Combinator's control behavior
 ---@field input_control_behavior LuaControlBehavior
 ---@field settings RcSettings
----@field last_signal string|false
----@field last_name string|false
----@field last_count int|false
+---@field last_signal? SignalID
+---@field last_name? string
+---@field last_count integer
 
 -- Signals Cache
 
