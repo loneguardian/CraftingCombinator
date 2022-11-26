@@ -358,18 +358,16 @@ function _M:open(player_index)
 	self:update_disabled_textboxes(root)
 end
 
-function _M:on_checked_changed(name, state, element)
+---@param name string
+---@param is_selected boolean
+---@param element LuaGuiElement
+function _M:on_checked_changed(name, is_selected, element)
 	local category, name = name:gsub(':.*$', ''), name:gsub('^.-:', ''):gsub('-', '_')
 	if category == 'mode' then
 		self.settings.mode = name
-		for _, el in pairs(element.parent.children) do
-			if el.type == 'radiobutton' then
-				local _, _, el_name = gui.parse_entity_gui_name(el.name)
-				el.state = el_name == 'mode:' .. name
-			end
-		end
+		gui.on_radiobutton_selected(element, category, name)
 	end
-	if category == 'misc' or category == 'sticky' then self.settings[name] = state; end
+	if category == 'misc' or category == 'sticky' then self.settings[name] = is_selected; end
 	if name == 'craft_until_zero' and self.settings.craft_until_zero then
 		self.last_recipe = nil
 	end

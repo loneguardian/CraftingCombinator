@@ -306,18 +306,13 @@ function _M:open(player_index)
 	self:update_disabled_checkboxes(root)
 end
 
-function _M:on_checked_changed(name, state, element)
+function _M:on_checked_changed(name, is_selected, element)
 	local category, name = name:gsub(':.*$', ''), name:gsub('^.-:', ''):gsub('-', '_')
 	if category == 'mode' then
 		self.settings.mode = name
-		for _, el in pairs(element.parent.children) do
-			if el.type == 'radiobutton' then
-				local _, _, el_name = gui.parse_entity_gui_name(el.name)
-				el.state = el_name == 'mode:'..name
-			end
-		end
+		gui.on_radiobutton_selected(element, category, name)
 	end
-	if category == 'misc' then self.settings[name] = state; end
+	if category == 'misc' then self.settings[name] = is_selected; end
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
 	self:update(true)
