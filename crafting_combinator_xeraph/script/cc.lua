@@ -98,7 +98,6 @@ end
 ---@param skip_latch? boolean
 ---@return CcState
 function _M.create(entity, tags, migrated_state, skip_latch)
-	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -114,8 +113,8 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
 		enabled = true,
-		last_recipe = false,
-		last_assembler_recipe = false,
+		last_recipe = nil,
+		last_assembler_recipe = nil,
 		read_mode_cb = false,
 		sticky = false,
 		allow_sticky = true,
@@ -131,7 +130,7 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 
 	if migrated_state then
 		combinator.assembler = migrated_state.assembler
-		combinator.last_recipe = migrated_state.last_recipe or false
+		combinator.last_recipe = migrated_state.last_recipe
 		combinator.last_assembler_recipe = combinator.last_recipe
 		combinator.inventories = migrated_state.inventories or combinator.inventories
 	end
@@ -505,8 +504,13 @@ function _M:set_recipe(current_tick)
 			self.last_recipe = recipe
 		else recipe = self.last_recipe; end
 	else
-		changed, recipe = recipe_selector.get_recipe(self.entity, nil, self.last_recipe and self.last_recipe.name, nil,
-			self.entityUID)
+		changed, recipe = recipe_selector.get_recipe(
+			self.entity,
+			nil,
+			self.last_recipe and self.last_recipe.name,
+			nil,
+			self.entityUID
+		)
 		if changed then
 			self.last_recipe = recipe
 		else
@@ -578,7 +582,7 @@ function _M:set_recipe(current_tick)
 	if new_assembler_recipe and new_assembler_recipe ~= recipe then -- failed to change recipe?
 		self.assembler.set_recipe(nil) -- failsafe for setting the wrong/forbidden recipe??
 		--TODO: Some notification?
-		self.last_assembler_recipe = false
+		self.last_assembler_recipe = nil
 		assembler_has_recipe = false
 	else
 		self.last_assembler_recipe = new_assembler_recipe
