@@ -152,18 +152,18 @@ end
 -- if a module-chest's mark is cancelled, get cc, enable and update
 -- if a cc is marked for deconstruction? (this should not happen because of 'not-deconstructable' flag
 
-function _M.on_module_chest_marked_for_decon(entity)
+function _M.on_module_chest_marked_for_decon(entity, current)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	if not combinator then return end -- why is deconstruction event firing before cloning event?
 	combinator.enabled = false
-	combinator:update()
+	combinator:update(nil, current)
 end
 
-function _M.on_module_chest_cancel_decon(entity)
+function _M.on_module_chest_cancel_decon(entity, current)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	if not combinator then return end -- probably need to hack this too
 	combinator.enabled = true
-	combinator:update()
+	combinator:update(nil, current)
 end
 
 ---Destroy method for cc state

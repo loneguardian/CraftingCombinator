@@ -380,12 +380,12 @@ script.on_event(defines.events.on_post_entity_died, blueprint.handle_event, {{fi
 -- decontruction events
 script.on_event(
 	defines.events.on_marked_for_deconstruction,
-	function(event) cc_control.on_module_chest_marked_for_decon(event.entity) end,
+	function(event) cc_control.on_module_chest_marked_for_decon(event.entity, event.tick) end,
 	{{filter = "name", name = config.MODULE_CHEST_NAME}}
 )
 script.on_event(
 	defines.events.on_cancelled_deconstruction,
-	function(event) cc_control.on_module_chest_cancel_decon(event.entity) end,
+	function(event) cc_control.on_module_chest_cancel_decon(event.entity, event.tick) end,
 	{{filter = "name", name = config.MODULE_CHEST_NAME}}
 )
 
