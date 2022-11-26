@@ -152,7 +152,7 @@ end
 
 local DUMMY_SIGNAL = {type = 'virtual', name = config.TIME_SIGNAL_NAME}
 local param_cache = {}
-local function make_params(size)
+local function get_params(size)
 	local params = param_cache[size]
 	if not params then
 		params = {}
@@ -174,27 +174,29 @@ function _M:find_recipe()
 	self.last_signal = signal
 	self.last_count = count
 	
-	local params = make_params(table_size(recipes))
-	local index = 1
-	local slots = _M.get_rc_slot_count()
-	
-	count = self.settings.multiply_by_input and count or 1
-	local round = self.settings.mode == 'use' and math.floor or math.ceil
-	for i, recipe in pairs(recipes) do
-		local param = params[i]
-		if not recipe.recipe.hidden and recipe.recipe.enabled then
-			param.signal = recipe_selector.get_signal(recipe.recipe.name)
-			param.count = self.settings.differ_output and index or (self.settings.divide_by_output and round(count/recipe.amount) or count)
-			param.index = index
-			index = index + 1
-		elseif slots > index then
-			param.signal = DUMMY_SIGNAL
-			param.count = 0
-			param.index = slots
-			slots = slots - 1
+	local recipes_count = #recipes
+	local params = get_params(recipes_count)
+	if recipes_count > 0 then
+		local index = 1
+		local slots = _M.get_rc_slot_count()
+		count = self.settings.multiply_by_input and count or 1
+		local round = self.settings.mode == 'use' and math.floor or math.ceil
+		for i=1,recipes_count do
+			local result = recipes[i]
+			local param = params[i]
+			if not result.recipe.hidden and result.recipe.enabled then
+				param.signal = recipe_selector.get_signal(result.recipe.name)
+				param.count = self.settings.differ_output and index or (self.settings.divide_by_output and round(count/result.amount) or count)
+				param.index = index
+				index = index + 1
+			elseif slots > index then
+				param.signal = DUMMY_SIGNAL
+				param.count = 0
+				param.index = slots
+				slots = slots - 1
+			end
 		end
 	end
-	
 	self.control_behavior.parameters = params
 end
 
@@ -209,7 +211,6 @@ function _M:find_ingredients_and_products()
 	)
 	
 	if not changed then return; end
-	
 	self.last_name = recipe and recipe.name
 	self.last_count = input_count
 	
@@ -219,27 +220,32 @@ function _M:find_ingredients_and_products()
 	
 	if recipe then
 		local crafting_multiplier = self.settings.multiply_by_input and input_count or 1
-		for i, ing in pairs(
-					self.settings.mode == 'prod' and recipe.products or
-					self.settings.mode == 'ing' and recipe.ingredients or {}
-				) do
+		---@type Ingredient[]|Product[]|false
+		local objects = (self.settings.mode == 'prod' and recipe.products) or (self.settings.mode == 'ing' and recipe.ingredients)
+		if not objects then goto recipe_time end
+		for i=1,#objects do
+			local obj = objects[i]
 			local amount = math.ceil(
-				tonumber(ing.amount or ing.amount_min or ing.amount_max) * crafting_multiplier
-				* (tonumber(ing.probability) or 1)
+				tonumber(obj.amount or obj.amount_min or obj.amount_max)
+				* crafting_multiplier
+				* (tonumber(obj.probability) or 1)
 			)
-			
 			params[i] = {
-				signal = {type = ing.type, name = ing.name},
+				signal = {type = obj.type, name = obj.name},
 				count = self.settings.differ_output and i or util.simulate_overflow(amount),
 				index = i,
 			}
 		end
-		
-		table.insert(params, {
+		::recipe_time::
+		if self.settings.time_multiplier == 0 then goto exit end
+		local count = util.simulate_overflow(math.floor(tonumber(recipe.energy) * self.settings.time_multiplier * crafting_multiplier))
+		if count == 0 then goto exit end
+		params[#params+1] = {
 			signal = {type = 'virtual', name = config.TIME_SIGNAL_NAME},
-			count = util.simulate_overflow(math.floor(tonumber(recipe.energy) * self.settings.time_multiplier * crafting_multiplier)),
+			count = count,
 			index = _M.get_rc_slot_count(),
-		})
+		}
+		::exit::
 	end
 	
 	self.control_behavior.parameters = params

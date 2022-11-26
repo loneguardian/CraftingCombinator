@@ -68,11 +68,13 @@ function _M.get_recipes(entity, circuit_id, mode, last_signal, last_count, entit
 	
 	local results = {}
 	for name, recipe in pairs(entity.force.recipes) do
-		for _, product in pairs(recipe[mode]) do
-			if product.name == highest.signal.name and product.type == highest.signal.type then
-				local amount = tonumber(product.amount or product.amount_min or product.amount_max) or 1
-				amount = amount * (tonumber(product.probability) or 1)
-				table.insert(results, {recipe = recipe, amount = amount})
+		for i=1,#recipe[mode] do
+			---@type Ingredient|Product
+			local obj = recipe[mode][i]
+			if obj.name == highest.signal.name and obj.type == highest.signal.type then
+				local amount = tonumber(obj.amount or obj.amount_min or obj.amount_max) or 1
+				amount = amount * (tonumber(obj.probability) or 1)
+				results[#results+1] = {recipe = recipe, amount = amount}
 				break
 			end
 		end
