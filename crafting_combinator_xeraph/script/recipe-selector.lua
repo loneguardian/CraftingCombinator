@@ -3,7 +3,14 @@ local signals = require 'script.signals'
 
 local _M = {}
 
-
+---@param entity LuaEntity
+---@param circuit_id defines.circuit_connector_id.combinator_input|nil
+---@param last_name string|nil `nil` if state has no current recipe before `get_recipe()`
+---@param last_count integer|nil `nil` when called from `cc` where highest count is not required to be returned
+---@param entityUID uid
+---@return boolean `True` if recipe changed
+---@return LuaRecipe? #recipe of the highest signal
+---@return int? #highest count
 function _M.get_recipe(entity, circuit_id, last_name, last_count, entityUID)
 	local highest = signals.get_highest(entity, circuit_id, last_count ~= nil, entityUID)
 	
@@ -27,6 +34,17 @@ local get_recipes_cache = {
 		fluid = {},
 	},
 }
+
+---@param entity LuaEntity
+---@param circuit_id defines.circuit_connector_id.combinator_input
+---@param mode "ingredients"|"products" ingredients/products field in LuaRecipe
+---@param last_signal SignalID?
+---@param last_count integer? `nil` if `rc.settings.multiply_by_input` is `false`, `highest_count` is not returned in this case
+---@param entityUID uid
+---@return boolean changed
+---@return {recipe: LuaRecipe, amount: uint}[]? results
+---@return integer? highest_count
+---@return SignalID? highest_signal
 function _M.get_recipes(entity, circuit_id, mode, last_signal, last_count, entityUID)
 	local highest = signals.get_highest(entity, circuit_id, last_count ~= nil, entityUID)
 	
