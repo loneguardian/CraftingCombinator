@@ -292,8 +292,8 @@ local get_state_type = {
 ---@return string gui_name
 ---@return uid unit_number
 ---@return string element_name
-local parse_element = function(element)
-	if not element then return end
+local parse_cc_gui_element = function(element)
+	if not (element and element.valid) then return end
 	local name = element.name
 	if name and name:match('^crafting_combinator:') then
 		local gui_name = name:gsub('^'..MOD_NAME..':', '')
@@ -311,64 +311,49 @@ function _M.on_radiobutton_selected(element, category, name)
 	if not category then return end
 	for _, el in pairs(element.parent.children) do
 		if el.type == 'radiobutton' then
-			local _, _, el_name = parse_element(el)
+			local _, _, el_name = parse_cc_gui_element(el)
 			el.state = el_name == category .. ":" .. name
 		end
 	end
 end
 
+---@param event table
+---@return LuaGuiElement element
+---@return string element_name
+---@return CcState|RcState
+---@return "cc"|"rc" state_type
+local parse_gui_event = function(event)
+	local element = event.element
+	if not element then return end
+	local gui_name, unit_number, element_name = parse_cc_gui_element(element)
+	if not gui_name then return end
+	local state_type = get_state_type[gui_name]
+	if not state_type then return end
+	return element, element_name, global[state_type].data[unit_number], state_type
+end
+
 local get_handler = {
 	[defines.events.on_gui_click] = function(event)
-		---@cast event EventData.on_gui_click
-		local element = event.element
-		if not element then return end
-		local gui_name, unit_number, element_name = parse_element(element)
-		if not gui_name then return end
-		local state_type = get_state_type[gui_name]
-		if not state_type then return end
-		local state
+		local element, element_name, state, state_type = parse_gui_event(event)
 		if state_type == "rc" then
 			return -- no on_click handler for rc
 		elseif state_type == "cc" then
-			state = global[state_type].data[unit_number]
 			if state and state:check_entities() then state:on_click(element_name, element) end
 		end
 	end,
 
 	[defines.events.on_gui_text_changed] = function(event)
-		---@cast event EventData.on_gui_text_changed
-		local element = event.element
-		if not element then return end
-		local gui_name, unit_number, element_name = parse_element(element)
-		if not gui_name then return end
-		local state_type = get_state_type[gui_name]
-		if not state_type then return end
-		local state = global[state_type].data[unit_number]
+		local element, element_name, state = parse_gui_event(event)
 		if state and state:check_entities() then state:on_text_changed(element_name, element.text) end
 	end,
 
 	[defines.events.on_gui_selection_state_changed] = function(event)
-		---@cast event EventData.on_gui_selection_state_changed
-		local element = event.element
-		if not element then return end
-		local gui_name, unit_number, element_name = parse_element(element)
-		if not gui_name then return end
-		local state_type = get_state_type[gui_name]
-		if not state_type then return end
-		local state = global[state_type].data[unit_number]
+		local element, element_name, state = parse_gui_event(event)
 		if state and state:check_entities() then state:on_selection_changed(element_name, element.selected_index) end
 	end,
 
 	[defines.events.on_gui_checked_state_changed] = function(event)
-		---@cast event EventData.on_gui_checked_state_changed
-		local element = event.element
-		if not element then return end
-		local gui_name, unit_number, element_name = parse_element(element)
-		if not gui_name then return end
-		local state_type = get_state_type[gui_name]
-		if not state_type then return end
-		local state
-		state = global[state_type].data[unit_number]
+		local element, element_name, state = parse_gui_event(event)
 		if state and state:check_entities() then state:on_checked_changed(element_name, element.state, element) end
 	end,
 
