@@ -1,4 +1,5 @@
 local config = require 'config'
+local housekeeping = require "script.housekeeping"
 local areas = require("__testorio__.testUtil.areas")
 
 ---@type fun(surface_index: uint, surface_name: string): LuaSurface, BoundingBox
@@ -9,16 +10,18 @@ local surface, area
 local player
 
 before_all(function()
-    player = game.get_player(1) --[[@as LuaPlayer]]
+    player = game.get_player(1)
     surface, area = test_area(1, "entity-test")
 
-    -- clear area
-    local entities = surface.find_entities(area)
-    for i = 1, #entities do
-        entities[i].destroy()
-    end
-
     -- TODO: exit editor mode
+end)
+
+after_all(function()
+    -- clear area
+    for _, surface in pairs(game.surfaces) do
+        surface.clear(true)
+    end
+    housekeeping.cleanup()
 end)
 
 describe("Entity test - CC", function()
@@ -32,8 +35,9 @@ describe("Entity test - CC", function()
     end)
 
     local build_cc = function()
-        player.cursor_stack.set_stack({name=config.CC_NAME})
+        player.cursor_stack.set_stack({name=config.CC_NAME, count = 1})
         player.build_from_cursor{position=build_position}
+        assert.is_false(player.cursor_stack.valid_for_read)
     end
 
     describe("build CC", function()
