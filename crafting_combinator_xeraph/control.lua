@@ -262,12 +262,14 @@ end)
 local function run_update(tab, tick, rate)
 	for i = tick % (rate + 1) + 1, #tab, (rate + 1) do tab[i]:update(nil, tick); end
 end
-script.on_event(defines.events.on_tick, function(event)
+
+---@param event EventData.on_tick
+local function on_tick(event)
 	local current = event.tick
 	if global_cc.queue_count > 0 then
 		local queue = inserter_empty_queue[current]
 		if queue then
-			for i=1,#queue do
+			for i = 1, #queue do
 				local state = queue[i]
 				if state.entity.valid and state.assembler and state.assembler.valid then state:empty_inserters(); end
 				global_cc.queue_count = global_cc.queue_count - 1
@@ -277,7 +279,7 @@ script.on_event(defines.events.on_tick, function(event)
 
 		queue = latch_queue.state[current]
 		if queue then
-			for i=1,#queue do
+			for i = 1, #queue do
 				local state = queue[i]
 				if state.entity.valid then -- using only simple entity check because the state could have already been dropped
 					state:find_assembler()
@@ -291,7 +293,7 @@ script.on_event(defines.events.on_tick, function(event)
 
 		queue = latch_queue.container[current]
 		if queue then
-			for i=1,#queue do
+			for i = 1, #queue do
 				local container = queue[i]
 				if container.valid then
 					cc_control.update_chests(container.surface, container)
@@ -300,10 +302,10 @@ script.on_event(defines.events.on_tick, function(event)
 			end
 			latch_queue.container[current] = nil
 		end
-		
+
 		queue = latch_queue.assembler[current]
 		if queue then
-			for i=1,#queue do
+			for i = 1, #queue do
 				local assembler = queue[i]
 				if assembler.valid then
 					cc_control.update_assemblers(assembler.surface, assembler)
@@ -315,8 +317,8 @@ script.on_event(defines.events.on_tick, function(event)
 	end
 	run_update(global_cc_ordered, current, cc_rate)
 	run_update(global_rc_ordered, current, rc_rate)
-end)
-
+end
+script.on_event(defines.events.on_tick, on_tick)
 script.on_nth_tick(600, function(event)
 	-- clean up partially cloned entities
 	clone_helper.on_nth_tick(event)
@@ -406,10 +408,11 @@ script.on_event(defines.events.on_gui_text_changed, gui.gui_event_handler)
 script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
 
 if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
-	require "__crafting_combinator_xeraph_test__.main"
-	_G.crafting_combinator_xeraph_lifecycle_test = {
+	_ENV.crafting_combinator_xeraph_lifecycle_test = {
 		on_init = on_init,
 		on_load = on_load,
-		on_configuration_changed = on_configuration_changed
+		on_configuration_changed = on_configuration_changed,
+		on_tick = on_tick
 	}
+	require "__crafting_combinator_xeraph_test__.main"
 end
