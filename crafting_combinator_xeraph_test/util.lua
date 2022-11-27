@@ -27,7 +27,7 @@ local function deepcopy(object, skip_metatable)
         if type(object) ~= "table" then
             return object
             -- don't copy factorio rich objects
-        elseif object.__self then
+        elseif rawget(object, "__self") then -- rawget to not trigger key_not_found handler
             return object
         elseif lookup_table[object] then
             return lookup_table[object]

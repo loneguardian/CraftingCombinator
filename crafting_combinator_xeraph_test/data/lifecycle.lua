@@ -51,7 +51,7 @@ local control
 local late_migrations_mt
 
 before_all(function()
-    control = _G.crafting_combinator_xeraph_lifecycle_test
+    control = _ENV.crafting_combinator_xeraph_lifecycle_test
 
     -- store original references
     original.global = global
@@ -67,22 +67,25 @@ before_each(function()
     global = {}
 end)
 
+local mock_tables = {}
 after_each(function()
-    -- restore global table reference (required by Testorio after each test)
-    global = original.global
-end)
+    -- revert mock, release reference
+    for k, v in pairs(mock_tables) do
+        if v then
+            mock.revert(v)
+            mock_tables[k] = nil
+        end
+    end
 
-after_all(function()
-    -- restore references
+    -- restore global table reference (required by Testorio after each test)
     global = original.global
     late_migrations = original.late_migrations
 
-    -- on_load to redirect references to original global tables skipping setmetatable()
+    -- reestablish local references to global tables for all modules, skipping setmetatable()
     control.on_load(true, true)
 end)
 
 --- reference to late_migrations.__migrations
-local migrations
 local migration_count = 5
 
 local function load_migrations()
@@ -93,7 +96,43 @@ local function load_migrations()
     late_migrations["random_name2"] = function() return true end
 
     assert.are_equal(migration_count, table_size(late_migrations.__migrations))
-    migrations = mock(late_migrations.__migrations)
+    mock_tables.migrations = mock(late_migrations.__migrations)
+end
+
+local on_load = false
+local on_tick_event = {name = defines.events.on_tick}
+local function on_tick_test()
+    if on_load then -- for on_load specs
+        -- mock rc cc state metatable
+        mock_tables.cc_mt = mock(getmetatable(global.cc.data[1]).__index, true)
+        mock_tables.rc_mt = mock(getmetatable(global.rc.data[1]).__index, true)
+
+        local timeout = math.max(control.settings.cc_rate + 1, control.settings.rc_rate)
+        local cc_updated = false
+        local rc_updated = false
+        async(timeout)
+        on_tick(function(tick)
+            if not cc_updated then
+                if #mock_tables.cc_mt.update.calls > 0 then
+                    cc_updated = true
+                end
+            end
+            if not rc_updated then
+                if #mock_tables.rc_mt.update.calls > 0 then
+                    rc_updated = true
+                end
+            end
+            if (cc_updated and cc_updated) then done() end
+            if (tick >= timeout) then
+                assert.is_true(cc_updated)
+                assert.is_true(rc_updated)
+                done()
+            end
+        end)
+    else
+        on_tick_event.tick = game.tick
+        control.on_tick(on_tick_event)
+    end
 end
 
 ---asserts for all tests in this module
@@ -101,13 +140,14 @@ local asserts_all = function()
     -- test mt of global cc rc data
     assert.is_truthy(getmetatable(global.cc.data))
     assert.is_truthy(getmetatable(global.rc.data))
+    on_tick_test()
 end
 
 describe("on_init", function()
     local asserts_on_init = function()
-        assert.are_equal(migration_count, table_size(migrations))
+        assert.are_equal(migration_count, table_size(mock_tables.migrations))
         -- assert that no late migration was applied
-        for _, migration in pairs(migrations) do
+        for _, migration in pairs(mock_tables.migrations) do
             assert.spy(migration.apply).called(0)
         end 
         asserts_all()
@@ -139,11 +179,18 @@ end)
 
 describe("on_load", function()
     before_each(function()
+        on_load = true
+
         control.on_init()
         global = deepcopy(global, true) -- deepcopy without metatables, simulate pre-on_load behaviour
 
-        global.cc.data[1] = {}
-        global.rc.data[1] = {} -- simulate existing cc/rc state
+        local cc_state = {}
+        global.cc.data[1] = cc_state
+        global.cc.ordered[1] = cc_state
+
+        local rc_state = {}
+        global.rc.data[1] = rc_state
+        global.rc.ordered[1] = rc_state -- simulate existing cc/rc state
     end)
 
     -- specs for on_load > conf changed
@@ -164,6 +211,7 @@ describe("on_load", function()
         test("no conf changed", function()
             control.on_load()
             asserts_on_load()
+            on_tick_test()
         end)
 
         describe("conf changed", function()
@@ -171,14 +219,15 @@ describe("on_load", function()
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_on_load()
+                on_tick_test()
             end)
         end)
     end)
 
     local asserts_migration_applied = function()
-        assert.are_equal(migration_count, table_size(migrations))
+        assert.are_equal(migration_count, table_size(mock_tables.migrations))
         -- assert that each migration was applied once
-        for _, migration in pairs(migrations) do
+        for _, migration in pairs(mock_tables.migrations) do
             assert.spy(migration.apply).called(1)
         end
         asserts_on_load()
@@ -194,6 +243,7 @@ describe("on_load", function()
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_migration_applied()
+                on_tick_test()
             end)
         end)
     end)
@@ -205,6 +255,7 @@ describe("on_load", function()
             load_migrations()
             control.on_load()
             asserts_migration_applied()
+            on_tick_test()
         end)
     end)
 end)

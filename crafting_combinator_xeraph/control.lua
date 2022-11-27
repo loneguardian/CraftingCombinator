@@ -409,6 +409,10 @@ script.on_event(defines.events.on_gui_click, gui.gui_event_handler)
 
 if script.active_mods.crafting_combinator_xeraph_test and script.active_mods.testorio then
 	_ENV.crafting_combinator_xeraph_lifecycle_test = {
+		settings = {
+			cc_rate = cc_rate,
+			rc_rate = rc_rate
+		},
 		on_init = on_init,
 		on_load = on_load,
 		on_configuration_changed = on_configuration_changed,
