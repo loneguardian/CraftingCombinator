@@ -1,7 +1,4 @@
 local config = require 'config'
-local housekeeping = require "script.housekeeping"
-local cc_control = require "script.cc"
-local rc_control = require "script.rc"
 local areas = require("__testorio__.testUtil.areas")
 
 ---@type fun(surface_index: uint, surface_name: string): LuaSurface, BoundingBox
@@ -38,32 +35,42 @@ describe("Entity test - CC", function()
     local build_cc = function()
         cursor.set_stack({name=config.CC_NAME, count = 1})
 
-        local entities = surface.find_entities(area)
-        game.print({"", surface.find_entity(config.CC_NAME, build_position) ~= nil, "1"})
+        -- local entities = surface.find_entities(area)
+        -- game.print({"", surface.find_entity(config.CC_NAME, build_position) ~= nil, "1"})
+
         player.build_from_cursor{position=build_position}
 
-        entities = surface.find_entities(area)
-        game.print({"", surface.find_entity(config.CC_NAME, build_position) ~= nil, "2"})
+        -- entities = surface.find_entities(area)
+        -- game.print({"", surface.find_entity(config.CC_NAME, build_position) ~= nil, "2"})
     end
 
-    local entity
+    local cc_entity, module_chest
+    local main_uid, part_uid
 
     before_each(function()
         build_cc()
-        entity = surface.find_entity(config.CC_NAME, build_position)
+        local entities = surface.find_entities(area)
+        for i=1,#entities do
+            if entities[i].name == config.CC_NAME then
+                cc_entity = entities[i]
+                main_uid = cc_entity.unit_number
+            elseif entities[i].name == config.MODULE_CHEST_NAME then
+                module_chest = entities[i]
+                part_uid = module_chest.unit_number
+            end
+        end
     end)
 
     test("Build CC", function()
+        -- check if item in cursor was spent to build
         assert.is_false(cursor.valid_for_read)
 
         -- find entity
-        assert.is_true(entity ~= nil)
+        assert.is_truthy(cc_entity)
 
         -- check state data
-        local global_data = global.cc.data
-        local uid = entity.unit_number
-        assert.is_true(entity.valid)
-        assert.are.equal(uid, global_data[uid].entityUID)
+        assert.is_true(cc_entity.valid)
+        assert.are_equal(main_uid, global.cc.data[main_uid].entityUID)
     end)
 
     describe("destroy CC", function()
@@ -74,76 +81,63 @@ describe("Entity test - CC", function()
         after_each(function()
             inventory.clear()
         end)
-        test("Player mine CC - Empty Inventory", function()
+        test("Player mine CC - empty inventory - success", function()
+            -- check if item in cursor was spent to build
             assert.is_false(cursor.valid_for_read)
 
             -- clear inventory
             inventory.clear()
 
-            local success = player.mine_entity(entity)
-
-            -- mined successfully?
-            assert.is_true(success)
+            player.mine_entity(cc_entity)
 
             -- check inventory
             assert.are_equal(inventory.get_item_count(config.CC_NAME), 1)
 
             -- check global data
+            assert.is_nil(rawget(global.cc.data, main_uid))
 
             -- check main_uid_by_part_uid
+            assert.is_nil(global.main_uid_by_part_uid[part_uid])
         end)
 
-        test("Player mine CC - Full Inventory", function()
+        test("Player mine CC - full Inventory + module chest filled - fail", function()
+            -- check if item in cursor was spent to build
             assert.is_false(cursor.valid_for_read)
 
             -- make sure inventory is full
-            local itemstack = {name="iron-plate"}
-            while not inventory.is_full() do
-                inventory.insert(itemstack)
+            local itemstack = "iron-plate"
+            local inv_size = #inventory
+            for i=1,inv_size do
+                inventory[i].set_stack(itemstack)
             end
 
             -- load module chest
-            local module_chest_inventory = surface.find_entity(config.MODULE_CHEST_NAME, build_position).get_inventory(defines.inventory.chest)
+            local module_chest_inventory = module_chest.get_inventory(defines.inventory.chest)
             module_chest_inventory.insert(itemstack)
             
-            local success = player.mine_entity(entity, false)
+            player.mine_entity(cc_entity)
 
-            -- failed to mine?
-            assert.is_falsy(success) -- doesn't work for god_main, editor_main, character_main inventory, always return success = true
+            -- no easy check for failed to mine
+            -- only the module chest part will return success = false, mining cc will always return success = true
 
-            -- check global data
+            -- check cursor
+            assert.is_false(cursor.valid_for_read)
 
+            -- check inventory
+            assert.are_equal(inventory.get_item_count(config.CC_NAME), 0)
 
-            -- check main_uid_by_part_uid
+            -- check global data -- old uid should be nil
+            assert.is_nil(rawget(global.cc.data, main_uid))
+
+            local new_main_uid = surface.find_entity(config.CC_NAME, build_position).unit_number
+
+            -- check global data -- new main uid should be truthy
+            assert.is_truthy(global.cc.data[new_main_uid])
+
+            -- check main_uid_by_part_uid -- part_uid should map to new main_uid
+            assert.are_equal(global.main_uid_by_part_uid[part_uid], new_main_uid)
         end)
     end)
 
     -- TODO: handle surface cleared, surface deleted
-end)
-
-test.skip("normal player build > mine", function()
-    cursor.set_stack({name=config.CC_NAME, count = 1})
-    local position = player.position
-
-    position.x = position.x + 1
-    position.y = position.y + 1
-
-    player.build_from_cursor{position=position}
-
-    local entity = surface.find_entity(config.CC_NAME, position)
-    if not entity then
-        cursor.clear()
-        return
-    end
-
-    local inventory = player.get_inventory(defines.inventory.character_main)
-    local itemstack = "iron-plate"
-
-    while not inventory.is_full() do
-        inventory.insert(itemstack)
-    end
-
-    local success = player.mine_entity(entity, false)
-
-    game.print({"", "normal player success:", success})
 end)
