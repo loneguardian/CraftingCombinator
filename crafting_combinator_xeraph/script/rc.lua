@@ -5,6 +5,7 @@ local gui = require 'script.gui'
 local recipe_selector = require 'script.recipe-selector'
 local signals = require 'script.signals'
 
+---@class RcControl
 local _M = {}
 local combinator_mt = {__index = _M}
 
@@ -65,7 +66,6 @@ end
 -- Lifecycle events
 
 function _M.create(entity, tags, migrated_state)
-	---@type RcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -77,10 +77,10 @@ function _M.create(entity, tags, migrated_state)
 		},
 		input_control_behavior = (migrated_state and migrated_state.input_control_behavior) or entity.get_or_create_control_behavior(),
 		settings = util.merge_combinator_settings(config.RC_DEFAULT_SETTINGS, tags, migrated_state),
-		last_signal = false,
-		last_name = false,
-		last_count = false
-	}, combinator_mt)
+		last_signal = nil,
+		last_name = nil,
+		last_count = 0
+	}, combinator_mt) --[[@as RcState]]
 	
 	entity.connect_neighbour {
 		wire = defines.wire_type.red,
@@ -135,12 +135,13 @@ function _M.check_entities(state)
 	end
 end
 
+---@param self RcState
 function _M:update(forced)
 	if not self:check_entities() then return end
 	if forced then
-		self.last_signal = false
-		self.last_name = false
-		self.last_count = false
+		self.last_signal = nil
+		self.last_name = nil
+		self.last_count = 0
 	end
 	
 	if self.settings.mode == 'rec' or self.settings.mode == 'use' then self:find_recipe()
@@ -151,7 +152,7 @@ end
 
 local DUMMY_SIGNAL = {type = 'virtual', name = config.TIME_SIGNAL_NAME}
 local param_cache = {}
-local function make_params(size)
+local function get_params(size)
 	local params = param_cache[size]
 	if not params then
 		params = {}
@@ -161,6 +162,7 @@ local function make_params(size)
 	return params
 end
 
+---@param self RcState
 function _M:find_recipe()
 	local changed, recipes, count, signal = recipe_selector.get_recipes(
 		self.entity, defines.circuit_connector_id.combinator_input,
@@ -172,30 +174,33 @@ function _M:find_recipe()
 	self.last_signal = signal
 	self.last_count = count
 	
-	local params = make_params(table_size(recipes))
-	local index = 1
-	local slots = _M.get_rc_slot_count()
-	
-	count = self.settings.multiply_by_input and count or 1
-	local round = self.settings.mode == 'use' and math.floor or math.ceil
-	for i, recipe in pairs(recipes) do
-		local param = params[i]
-		if not recipe.recipe.hidden and recipe.recipe.enabled then
-			param.signal = recipe_selector.get_signal(recipe.recipe.name)
-			param.count = self.settings.differ_output and index or (self.settings.divide_by_output and round(count/recipe.amount) or count)
-			param.index = index
-			index = index + 1
-		elseif slots > index then
-			param.signal = DUMMY_SIGNAL
-			param.count = 0
-			param.index = slots
-			slots = slots - 1
+	local recipes_count = #recipes
+	local params = get_params(recipes_count)
+	if recipes_count > 0 then
+		local index = 1
+		local slots = _M.get_rc_slot_count()
+		count = self.settings.multiply_by_input and count or 1
+		local round = self.settings.mode == 'use' and math.floor or math.ceil
+		for i=1,recipes_count do
+			local result = recipes[i]
+			local param = params[i]
+			if not result.recipe.hidden and result.recipe.enabled then
+				param.signal = recipe_selector.get_signal(result.recipe.name)
+				param.count = self.settings.differ_output and index or (self.settings.divide_by_output and round(count/result.amount) or count)
+				param.index = index
+				index = index + 1
+			elseif slots > index then
+				param.signal = DUMMY_SIGNAL
+				param.count = 0
+				param.index = slots
+				slots = slots - 1
+			end
 		end
 	end
-	
 	self.control_behavior.parameters = params
 end
 
+---@param self RcState
 function _M:find_ingredients_and_products()
 	local changed, recipe, input_count = recipe_selector.get_recipe(
 		self.entity,
@@ -206,7 +211,6 @@ function _M:find_ingredients_and_products()
 	)
 	
 	if not changed then return; end
-	
 	self.last_name = recipe and recipe.name
 	self.last_count = input_count
 	
@@ -216,33 +220,38 @@ function _M:find_ingredients_and_products()
 	
 	if recipe then
 		local crafting_multiplier = self.settings.multiply_by_input and input_count or 1
-		for i, ing in pairs(
-					self.settings.mode == 'prod' and recipe.products or
-					self.settings.mode == 'ing' and recipe.ingredients or {}
-				) do
+		---@type Ingredient[]|Product[]|false
+		local objects = (self.settings.mode == 'prod' and recipe.products) or (self.settings.mode == 'ing' and recipe.ingredients)
+		if not objects then goto recipe_time end
+		for i=1,#objects do
+			local obj = objects[i]
 			local amount = math.ceil(
-				tonumber(ing.amount or ing.amount_min or ing.amount_max) * crafting_multiplier
-				* (tonumber(ing.probability) or 1)
+				tonumber(obj.amount or obj.amount_min or obj.amount_max)
+				* crafting_multiplier
+				* (tonumber(obj.probability) or 1)
 			)
-			
 			params[i] = {
-				signal = {type = ing.type, name = ing.name},
+				signal = {type = obj.type, name = obj.name},
 				count = self.settings.differ_output and i or util.simulate_overflow(amount),
 				index = i,
 			}
 		end
-		
-		table.insert(params, {
+		::recipe_time::
+		if self.settings.time_multiplier == 0 then goto exit end
+		local count = util.simulate_overflow(math.floor(tonumber(recipe.energy) * self.settings.time_multiplier * crafting_multiplier))
+		if count == 0 then goto exit end
+		params[#params+1] = {
 			signal = {type = 'virtual', name = config.TIME_SIGNAL_NAME},
-			count = util.simulate_overflow(math.floor(tonumber(recipe.energy) * self.settings.time_multiplier * crafting_multiplier)),
+			count = count,
 			index = _M.get_rc_slot_count(),
-		})
+		}
+		::exit::
 	end
 	
 	self.control_behavior.parameters = params
 end
 
-
+---@param self RcState
 function _M:find_machines()
 	local changed, recipe, input_count = recipe_selector.get_recipe(
 		self.entity,
@@ -253,7 +262,6 @@ function _M:find_machines()
 	)
 	
 	if not changed then return; end
-	
 	self.last_name = recipe and recipe.name
 	self.last_count = input_count
 	
@@ -283,7 +291,7 @@ function _M:find_machines()
 	self.control_behavior.parameters = params
 end
 
-
+---@param self RcState
 function _M:open(player_index)
 	local root = gui.entity(self.entity, {
 		gui.section {
@@ -306,23 +314,20 @@ function _M:open(player_index)
 	self:update_disabled_checkboxes(root)
 end
 
-function _M:on_checked_changed(name, state, element)
+---@param self RcState
+function _M:on_checked_changed(name, is_selected, element)
 	local category, name = name:gsub(':.*$', ''), name:gsub('^.-:', ''):gsub('-', '_')
 	if category == 'mode' then
 		self.settings.mode = name
-		for _, el in pairs(element.parent.children) do
-			if el.type == 'radiobutton' then
-				local _, _, el_name = gui.parse_entity_gui_name(el.name)
-				el.state = el_name == 'mode:'..name
-			end
-		end
+		gui.on_radiobutton_selected(element, category, name)
 	end
-	if category == 'misc' then self.settings[name] = state; end
+	if category == 'misc' then self.settings[name] = is_selected; end
 	
 	self:update_disabled_checkboxes(gui.get_root(element))
 	self:update(true)
 end
 
+---@param self RcState
 function _M:update_disabled_checkboxes(root)
 	self:disable_checkbox(root, 'misc:divide-by-output', 'divide_by_output',
 			(self.settings.mode == 'rec' or self.settings.mode == 'use') and not self.settings.differ_output)
@@ -333,6 +338,7 @@ function _M:update_disabled_checkboxes(root)
 			not self.settings.multiply_by_input)
 end
 
+---@param self RcState
 function _M:disable_checkbox(root, name, setting_name, enable, set_state)
 	set_state = set_state or false
 	local checkbox = gui.find_element(root, gui.name(self.entity, name))
@@ -343,6 +349,7 @@ function _M:disable_checkbox(root, name, setting_name, enable, set_state)
 	end
 end
 
+---@param self RcState
 function _M:on_text_changed(name, text)
 	if name == 'misc:time-multiplier:value' then
 		self.settings.time_multiplier = tonumber(text) or self.settings.time_multiplier
@@ -350,7 +357,7 @@ function _M:on_text_changed(name, text)
 	end
 end
 
-
+---@param self RcState
 function _M:update_inner_positions()
 	self.output_proxy.teleport(self.entity.position)
 end

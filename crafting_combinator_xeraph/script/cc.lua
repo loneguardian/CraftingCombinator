@@ -7,8 +7,10 @@ local signals = require 'script.signals'
 
 local table = table
 
+---@class CcControl
 local _M = {}
 local combinator_mt = { __index = _M }
+
 
 -- index metamethod for global.cc.data to handle key not found cases
 local global_data_mt = {
@@ -96,7 +98,6 @@ end
 ---@param skip_latch? boolean
 ---@return CcState
 function _M.create(entity, tags, migrated_state, skip_latch)
-	---@type CcState
 	local combinator = setmetatable({
 		entityUID = entity.unit_number,
 		entity = entity,
@@ -112,13 +113,13 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 		items_to_ignore = {},
 		last_flying_text_tick = -config.FLYING_TEXT_INTERVAL,
 		enabled = true,
-		last_recipe = false,
-		last_assembler_recipe = false,
+		last_recipe = nil,
+		last_assembler_recipe = nil,
 		read_mode_cb = false,
 		sticky = false,
 		allow_sticky = true,
 		unstick_at_tick = 0
-	}, combinator_mt)
+	}, combinator_mt) --[[@as CcState]]
 
 	combinator.module_chest.destructible = false
 	combinator.inventories.module_chest = combinator.module_chest.get_inventory(defines.inventory.chest)
@@ -129,7 +130,7 @@ function _M.create(entity, tags, migrated_state, skip_latch)
 
 	if migrated_state then
 		combinator.assembler = migrated_state.assembler
-		combinator.last_recipe = migrated_state.last_recipe or false
+		combinator.last_recipe = migrated_state.last_recipe
 		combinator.last_assembler_recipe = combinator.last_recipe
 		combinator.inventories = migrated_state.inventories or combinator.inventories
 	end
@@ -150,18 +151,18 @@ end
 -- if a module-chest's mark is cancelled, get cc, enable and update
 -- if a cc is marked for deconstruction? (this should not happen because of 'not-deconstructable' flag
 
-function _M.on_module_chest_marked_for_decon(entity)
+function _M.on_module_chest_marked_for_decon(entity, current)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	if not combinator then return end -- why is deconstruction event firing before cloning event?
 	combinator.enabled = false
-	combinator:update()
+	combinator:update(nil, current)
 end
 
-function _M.on_module_chest_cancel_decon(entity)
+function _M.on_module_chest_cancel_decon(entity, current)
 	local combinator = global.cc.data[global.main_uid_by_part_uid[entity.unit_number]]
 	if not combinator then return end -- probably need to hack this too
 	combinator.enabled = true
-	combinator:update()
+	combinator:update(nil, current)
 end
 
 ---Destroy method for cc state
@@ -186,7 +187,7 @@ end
 
 ---Called when a cc entity is mined by player during on_player_mined_entity
 ---@param uid uid uid for cc entity
----@param player_index integer
+---@param player_index uint
 ---@return boolean true when successfully mined
 function _M.mine_module_chest(uid, player_index)
 	if player_index then
@@ -295,7 +296,9 @@ function _M.check_entities(state)
 end
 
 ---Method to update CC state
----@param forced boolean Forced update clears control_behavior signals.
+---@param self CcState
+---@param forced? boolean Forced update clears control_behavior signals.
+---@param current_tick uint
 function _M:update(forced, current_tick)
 	if not self:check_entities() then return end
 	if forced then
@@ -324,6 +327,8 @@ function _M:update(forced, current_tick)
 	end
 end
 
+---@param self CcState
+---@param player_index uint
 function _M:open(player_index)
 	local root = gui.entity(self.entity, {
 		title_elements = {
@@ -358,18 +363,17 @@ function _M:open(player_index)
 	self:update_disabled_textboxes(root)
 end
 
-function _M:on_checked_changed(name, state, element)
+---@param self CcState
+---@param name string
+---@param is_selected boolean
+---@param element LuaGuiElement
+function _M:on_checked_changed(name, is_selected, element)
 	local category, name = name:gsub(':.*$', ''), name:gsub('^.-:', ''):gsub('-', '_')
 	if category == 'mode' then
 		self.settings.mode = name
-		for _, el in pairs(element.parent.children) do
-			if el.type == 'radiobutton' then
-				local _, _, el_name = gui.parse_entity_gui_name(el.name)
-				el.state = el_name == 'mode:' .. name
-			end
-		end
+		gui.on_radiobutton_selected(element, category, name)
 	end
-	if category == 'misc' or category == 'sticky' then self.settings[name] = state; end
+	if category == 'misc' or category == 'sticky' then self.settings[name] = is_selected; end
 	if name == 'craft_until_zero' and self.settings.craft_until_zero then
 		self.last_recipe = nil
 	end
@@ -378,6 +382,7 @@ function _M:on_checked_changed(name, state, element)
 	self:update_disabled_textboxes(gui.get_root(element))
 end
 
+---@param self CcState
 function _M:on_text_changed(name, text)
 	if name == 'sticky:craft-n-before-switch:value' then
 		self.sticky = false
@@ -406,11 +411,13 @@ function _M:update_disabled_textboxes(root)
 	self:disable_textbox(root, 'sticky:craft-n-before-switch', 'w')
 end
 
+---@param self CcState
 function _M:disable_checkbox(root, name, mode)
 	local checkbox = gui.find_element(root, gui.name(self.entity, name))
 	checkbox.enabled = self.settings.mode == mode
 end
 
+---@param self CcState
 function _M:disable_textbox(root, name, mode)
 	local caption = gui.find_element(root, gui.name(self.entity, name, "caption"))
 	local textbox = gui.find_element(root, gui.name(self.entity, name, "value"))
@@ -424,6 +431,7 @@ function _M:disable_textbox(root, name, mode)
 	end
 end
 
+---@param self CcState
 function _M:on_selection_changed(name, selected)
 	if name == 'title:chest-position:value' then
 		self.settings.chest_position = selected
@@ -431,6 +439,7 @@ function _M:on_selection_changed(name, selected)
 	end
 end
 
+---@param self CcState
 function _M:on_click(name, element)
 	if name == 'title:open-module-chest' then
 		game.get_player(element.player_index).opened = self.module_chest
@@ -439,6 +448,7 @@ end
 
 -- Other stuff
 
+---@param self CcState
 function _M:read_recipe(params)
 	local recipe = self.assembler.get_recipe()
 	if recipe then
@@ -450,6 +460,7 @@ function _M:read_recipe(params)
 	end
 end
 
+---@param self CcState
 function _M:read_speed(params)
 	local count = self.assembler.crafting_speed * 100
 	table.insert(params, {
@@ -459,6 +470,7 @@ function _M:read_speed(params)
 	})
 end
 
+---@param self CcState
 function _M:read_machine_status(params)
 	local signal = STATUS_SIGNALS[self.assembler.status or "A dummy string to avoid indexing by nil"]
 	if signal == nil then return end
@@ -469,6 +481,7 @@ function _M:read_machine_status(params)
 	})
 end
 
+---@param self CcState
 function _M:set_recipe(current_tick)
 	-- Check sticky state and return early if still sticky
 	if self.sticky then
@@ -491,8 +504,13 @@ function _M:set_recipe(current_tick)
 			self.last_recipe = recipe
 		else recipe = self.last_recipe; end
 	else
-		changed, recipe = recipe_selector.get_recipe(self.entity, nil, self.last_recipe and self.last_recipe.name, nil,
-			self.entityUID)
+		changed, recipe = recipe_selector.get_recipe(
+			self.entity,
+			nil,
+			self.last_recipe and self.last_recipe.name,
+			nil,
+			self.entityUID
+		)
 		if changed then
 			self.last_recipe = recipe
 		else
@@ -564,7 +582,7 @@ function _M:set_recipe(current_tick)
 	if new_assembler_recipe and new_assembler_recipe ~= recipe then -- failed to change recipe?
 		self.assembler.set_recipe(nil) -- failsafe for setting the wrong/forbidden recipe??
 		--TODO: Some notification?
-		self.last_assembler_recipe = false
+		self.last_assembler_recipe = nil
 		assembler_has_recipe = false
 	else
 		self.last_assembler_recipe = new_assembler_recipe
