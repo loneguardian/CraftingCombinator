@@ -1,55 +1,49 @@
 local deepcopy = require("__crafting_combinator_xeraph_test__.util").deepcopy
 
---- stores global references for before_all and after_all
-local original = {
-    global = nil,
-    late_migrations = nil
-}
-
-local late_migrations_template = {__migrations = {}, __ordered = {}, __versioned = {}}
-
---- specs: dummy ConfigurationChangedData
-local conf_changed_data = {
-    init_only = {
-        mod_changes = {
+--- specs: grouped dummy ConfigurationChangedData
+---
+--- {category : {spec name, ConfigurationChangedData}}
+local conf_changed_specs = {
+    init = {
+        { "init only", { mod_changes = {
             crafting_combinator_xeraph = {
                 new_version = true
             }
-        }
-    },
-    init_remove_original = {
-        mod_changes = {
+        } } },
+        { "original mod removed", { mod_changes = {
             crafting_combinator = {
                 old_version = true
             },
             crafting_combinator_xeraph = {
                 new_version = true
             }
-        }
+        } } },
     },
-    load_update = {
-        mod_changes = {
+    load = {
+        { "mod update", { mod_changes = {
             crafting_combinator_xeraph = {
                 old_version = true,
                 new_version = true
             }
-        }
+        } } },
+        { "other mod update", { mod_changes = {
+            some_random_mod = true
+        } } },
+        { "no mod changes", {
+            mod_changes = {}
+        } }
     },
-    load_other_mod_changes = {
-        mod_changes = {
-            crafting_combinator_xeraph = false
-        }
-    },
-    load_no_mod_changes = {
-        mod_changes = {}
-    }
 }
-
 -- upvalues
 
 local control
 local late_migrations_mt
 
+--- stores global references for setup and teardown
+local original = {
+    global = nil,
+    late_migrations = nil
+}
 before_all(function()
     control = _ENV.crafting_combinator_xeraph_lifecycle_test
 
@@ -59,6 +53,7 @@ before_all(function()
     late_migrations_mt = getmetatable(late_migrations)
 end)
 
+local late_migrations_template = {__migrations = {}, __ordered = {}, __versioned = {}}
 before_each(function()
     -- replace late_migrations table
     late_migrations = setmetatable(deepcopy(late_migrations_template), late_migrations_mt)
@@ -85,9 +80,9 @@ after_each(function()
     control.on_load(true, true)
 end)
 
---- reference to late_migrations.__migrations
-local migration_count = 5
+--- functions scoped for all tests
 
+local migration_count = 5
 local function load_migrations()
     late_migrations["0.0.1"] = function() return true end
     late_migrations["0.0.2"] = function() return true end
@@ -135,7 +130,7 @@ local function on_tick_test()
     end
 end
 
----asserts for all tests in this module
+---asserts scoped for all tests
 local asserts_all = function()
     -- test mt of global cc rc data
     assert.is_truthy(getmetatable(global.cc.data))
@@ -159,15 +154,9 @@ describe("on_init", function()
             load_migrations() -- migration files are loaded after on_init
             asserts_on_init()
         end)
-        
-        -- specs for on_init > conf changed
-        local conf_changed_tests = {
-            {"init only", conf_changed_data.init_only},
-            {"remove original", conf_changed_data.init_remove_original},
-        }
 
         describe("conf changed", function ()
-            test.each(conf_changed_tests, "%s", function(_, change)
+            test.each(conf_changed_specs.init, "%s", function(_, change)
                 control.on_init()
                 load_migrations()
                 control.on_configuration_changed(change)
@@ -184,21 +173,15 @@ describe("on_load", function()
         control.on_init()
         global = deepcopy(global, true) -- deepcopy without metatables, simulate pre-on_load behaviour
 
+        -- simulate existing cc/rc states
         local cc_state = {}
         global.cc.data[1] = cc_state
         global.cc.ordered[1] = cc_state
 
         local rc_state = {}
         global.rc.data[1] = rc_state
-        global.rc.ordered[1] = rc_state -- simulate existing cc/rc state
+        global.rc.ordered[1] = rc_state
     end)
-
-    -- specs for on_load > conf changed
-    local conf_changed_tests = {
-        {"mod updated", conf_changed_data.load_update},
-        {"mod not updated", conf_changed_data.load_other_mod_changes},
-        {"no mod changes", conf_changed_data.load_no_mod_changes}
-    }
 
     local asserts_on_load = function()
         -- test mt of cc rc state
@@ -215,7 +198,7 @@ describe("on_load", function()
         end)
 
         describe("conf changed", function()
-            test.each(conf_changed_tests, "%s", function(_, changes)
+            test.each(conf_changed_specs.load, "%s", function(_, changes)
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_on_load()
@@ -239,7 +222,7 @@ describe("on_load", function()
         end)
 
         describe("conf changed", function()
-            test.each(conf_changed_tests, "%s", function(_, changes)
+            test.each(conf_changed_specs.load, "%s", function(_, changes)
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_migration_applied()
@@ -251,7 +234,7 @@ describe("on_load", function()
     -- scenarios below should not happen
     -- except during dev
     describe("hypothetical", function()
-        test.skip("migration only", function() -- conf changed bypassed by not updating version number
+        test.skip("migration only", function() -- no conf changed, bypassed by not updating version number
             load_migrations()
             control.on_load()
             asserts_migration_applied()
