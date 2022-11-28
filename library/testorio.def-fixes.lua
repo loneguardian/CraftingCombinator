@@ -55,3 +55,10 @@ function describe.each(values) end
 ---@param values `T`[]
 ---@return fun(name: string, func: fun(v: T))
 function describe.each(values) end
+
+
+-- TestUtil
+-- test_areas
+
+---@class TestUtilAreas
+---@field test_area fun(surface_index: uint, surface_name: string): LuaSurface, BoundingBox
