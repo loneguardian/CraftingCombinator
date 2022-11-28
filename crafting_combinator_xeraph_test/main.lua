@@ -3,7 +3,8 @@ require("__testorio__.init")({
     --"unit-test.gui",
     "unit-test.clone-helper",
     "data.error-handling",
-    "entity.cc"
+    "entity.cc",
+    --"test-test"
 },
 {
     --log_passed_tests = false
