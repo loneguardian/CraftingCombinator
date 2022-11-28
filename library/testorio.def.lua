@@ -1,5 +1,5 @@
 ---@meta
---@diagnostic disable
+---@diagnostic disable
 
 ---@type TestCreator
 test = nil
@@ -66,23 +66,6 @@ function part(func) end
 ---@overload fun(name: string, func: TestFn): TestBuilder<TestFn>
 local TestCreatorBase = {}
 
----@generic T
----@param values `T`[][]
----@param name string
----@param func fun(...:T)
----@return TestBuilder<fun(...:T)>
-function TestCreatorBase.each(values, name, func) end
-
----@generic T
----@param values `T`[][]
----@return fun(name: string, func: fun(...:T))
-function TestCreatorBase.each(values) end
-
----@generic T
----@param values `T`[]
----@return fun(name: string, func: fun(values: T))
-function TestCreatorBase.each(values) end
-
 ---@class TestCreator : TestCreatorBase
 ---@overload fun(name: string, func: TestFn): TestBuilder<TestFn>
 ---@field skip TestCreatorBase
@@ -96,30 +79,23 @@ local TestCreator = {
 ---@class TestBuilder<T>
 local TestBuilder = {}
 
----@param func T
+---@generic T
+---@param func `T`
 ---@return TestBuilder<T>
 function TestBuilder.after_script_reload(func) end
 
----@param func T
+---@generic T
+---@param func `T`
 ---@return TestBuilder<T>
 function TestBuilder.after_mod_reload(func) end
 
 ---@class DescribeCreatorBase
----@overload fun(name: string, func: TestFn): void
+---@overload fun(name: string, func: TestFn)
 local DescribeCreatorBase = {}
 
----@generic T
----@param values T[][]
----@param name string
----@param func fun(vararg T): void
----@overload fun<T>(values: T[], name: string, func: fun(v: T): void): void
----@overload fun<T>(values: T[][]): fun(name: string, func: fun(vararg T): void): void
----@overload fun<T>(values: T[]): fun(name: string, func: fun(v: T): void): void
-function DescribeCreatorBase.each(values, name, func) end
-
 ---@class DescribeCreator : DescribeCreatorBase
----@overload fun(name: string, func: TestFn): void
+---@overload fun(name: string, func: TestFn)
 ---@field skip DescribeCreator
 ---@field only DescribeCreator
 
----@alias Lifecycle fun(func: HookFn): void
+---@alias Lifecycle fun(func: HookFn)
