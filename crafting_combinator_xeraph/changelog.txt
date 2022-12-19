@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
-Date: 2022-12-20
+Date: 2022-12-19
   Bugfixes:
     - Fixes game crash when on_post_entity_died did not return a ghost object (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63a08d70cf06c35a965eaca9)
 ---------------------------------------------------------------------------------------------------
