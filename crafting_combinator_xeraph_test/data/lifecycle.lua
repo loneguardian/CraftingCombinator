@@ -102,7 +102,7 @@ local function on_tick_test()
         mock_tables.cc_mt = mock(getmetatable(global.cc.data[1]).__index, true)
         mock_tables.rc_mt = mock(getmetatable(global.rc.data[1]).__index, true)
 
-        local timeout = math.max(control.settings.cc_rate + 1, control.settings.rc_rate)
+        local timeout = math.max(control.settings.cc_rate + 1, control.settings.rc_rate + 1)
         local cc_updated = false
         local rc_updated = false
         async(timeout)
@@ -139,20 +139,25 @@ local asserts_all = function()
 end
 
 describe("on_init", function()
-    local asserts_on_init = function()
-        assert.are_equal(migration_count, table_size(mock_tables.migrations))
-        -- assert that no late migration was applied
-        for _, migration in pairs(mock_tables.migrations) do
-            assert.spy(migration.apply).called(0)
-        end 
+    test("without migration", function()
+        control.on_init()
         asserts_all()
-    end
+    end)
 
     describe("with migration", function ()
+        local asserts_on_init_with_migration = function()
+            assert.are_equal(migration_count, table_size(mock_tables.migrations))
+            -- assert that no late migration was applied
+            for _, migration in pairs(mock_tables.migrations) do
+                assert.spy(migration.apply).called(0)
+            end 
+            asserts_all()
+        end
+        
         test("no conf changed", function()
             control.on_init()
             load_migrations() -- migration files are loaded after on_init
-            asserts_on_init()
+            asserts_on_init_with_migration()
         end)
 
         describe("conf changed", function ()
@@ -160,7 +165,7 @@ describe("on_init", function()
                 control.on_init()
                 load_migrations()
                 control.on_configuration_changed(change)
-                asserts_on_init()
+                asserts_on_init_with_migration()
             end)
         end)
     end)
@@ -194,7 +199,6 @@ describe("on_load", function()
         test("no conf changed", function()
             control.on_load()
             asserts_on_load()
-            on_tick_test()
         end)
 
         describe("conf changed", function()
@@ -202,7 +206,6 @@ describe("on_load", function()
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_on_load()
-                on_tick_test()
             end)
         end)
     end)
@@ -226,7 +229,6 @@ describe("on_load", function()
                 control.on_load()
                 control.on_configuration_changed(changes)
                 asserts_migration_applied()
-                on_tick_test()
             end)
         end)
     end)
@@ -238,7 +240,6 @@ describe("on_load", function()
             load_migrations()
             control.on_load()
             asserts_migration_applied()
-            on_tick_test()
         end)
     end)
 end)

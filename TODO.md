@@ -7,3 +7,5 @@
 
 3. test `gui`
 	- unit test for all gui interaction for cc and rc
+
+4. test `cc.move_modules, insert_modules, insert_items, move_items`
