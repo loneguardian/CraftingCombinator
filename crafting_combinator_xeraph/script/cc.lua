@@ -295,6 +295,17 @@ function _M.check_entities(state)
 	end
 end
 
+-- called during `on_configuration_changed` to reset cc/rc with invalid recipes
+function _M.check_recipes()
+	for i=1,#global.cc.ordered do
+		local state = global.cc.ordered[i]
+		if state.last_recipe and not(state.last_recipe.valid) then
+			state.last_recipe = nil
+			state.last_assembler_recipe = nil
+		end
+	end
+end
+
 ---Method to update CC state
 ---@param self CcState
 ---@param forced? boolean Forced update clears control_behavior signals.
@@ -497,12 +508,17 @@ function _M:set_recipe(current_tick)
 	-- Update/get cc recipe
 	local changed, recipe
 	if self.settings.craft_until_zero then
-		if not self.last_recipe or not signals.signal_present(self.entity, nil, self.entityUID) then
+		if self.last_recipe and signals.signal_present(self.entity, nil, self.entityUID) then
+			recipe = self.last_recipe
+		else
 			local highest = signals.watch_highest_presence(self.entity, nil, self.entityUID)
-			if highest then recipe = self.entity.force.recipes[highest.signal.name]
-			else recipe = nil; end
+			if highest then
+				recipe = self.entity.force.recipes[highest.signal.name]
+			else
+				recipe = nil
+			end
 			self.last_recipe = recipe
-		else recipe = self.last_recipe; end
+		end
 	else
 		changed, recipe = recipe_selector.get_recipe(
 			self.entity,

@@ -1,12 +1,13 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
-Date: ????
-  Changes:
+Date: 2023-01-04
+  Bugfixes:
+    - Fixes mod crash when recipe is removed from the save.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 2022-12-19
   Bugfixes:
-    - Fixes game crash when on_post_entity_died did not return a ghost object (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63a08d70cf06c35a965eaca9)
+    - Fixes mod crash when on_post_entity_died did not return a ghost object (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63a08d70cf06c35a965eaca9)
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: 2022-11-23

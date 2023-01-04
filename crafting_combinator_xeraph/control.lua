@@ -91,6 +91,9 @@ local function on_configuration_changed(changes)
 	end
 
 	enable_recipes()
+
+	-- check existing cc recipes
+	cc_control.check_recipes()
 end
 
 script.on_init(on_init)
