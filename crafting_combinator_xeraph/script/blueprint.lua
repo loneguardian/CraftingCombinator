@@ -124,12 +124,16 @@ local on_blueprint_gui_closed = function(event)
 
   if delayed_blueprint_tag_state.is_queued then
     local gui_type = event.gui_type
-    if gui_type == defines.gui_type.item and event.item.type == "blueprint" then
-      local blueprint = event.item
-      local transferred, failed = delayed_blueprint_tag_helper.tag(player_index, blueprint)
-      local player = game.get_player(player_index)
-      player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-warning"}})
-      player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-summary", transferred, failed}})
+    if gui_type == defines.gui_type.item then
+      if event.item == nil then
+        game.get_player(player_index).print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-error:item-nil"}})
+      elseif event.item.type == "blueprint" then
+        local blueprint = event.item
+        local transferred, failed = delayed_blueprint_tag_helper.tag(player_index, blueprint)
+        local player = game.get_player(player_index)
+        player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-warning"}})
+        player.print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-summary", transferred, failed}})
+      end
     elseif gui_type == defines.gui_type.blueprint_library then
       game.get_player(player_index).print({"crafting_combinator.chat-message", {"blueprint.delayed-transfer-error:library"}})
     end
