@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
-Date: ????
+Date: 2023-01-11
   Changes:
     - Handles mod crash when user updates a blueprint within a blueprint book - note that blueprints in a blueprint book remains non-updateable by this mod (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63bdb55835fe459808a056ad)
     - Attempt to fix crash when a recipe cached by cc is removed due to mod updates/removal. This is labelled as "attempt-to-fix" due to not having a way to reproduce the bug
