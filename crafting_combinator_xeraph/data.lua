@@ -139,7 +139,7 @@ data:extend {
 	{
 		type = 'item-group',
 		name = config.GROUP_NAME,
-		order = 'fb',
+		order = 'zzz[crafting-combinator]',
 		icon = MOD_PATH .. '/graphics/recipe-book.png',
 		icon_size = 64,
 	},
