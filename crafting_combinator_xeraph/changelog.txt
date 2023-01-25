@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.5
-Date: ????
+Date: 2023-01-25
   Changes:
+    - Changed the order of 'Crafting combinator recipes' signal group for it to be placed at the end of all other signal groups (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63c7efbfca0d2b9a1bfd46b5).
+  Bugfixes:
+    - Fixed housekeeping module crashing when signal cache lamp type cannot be determined (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63ceddab9e540534a4b8e92d).
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
 Date: 2023-01-11
