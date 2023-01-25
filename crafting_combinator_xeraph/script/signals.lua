@@ -100,19 +100,25 @@ function _M.migrate_lamp(lamp)
 	local cb = lamp.get_control_behavior() --[[@as LuaLampControlBehavior]]
 	if not (cb and cb.valid) then return end
 
+	-- determine the type of cache
 	local lamp_type
-	-- determine the type of lamp -- maybe can refactor into separate function - for ID-ing cloned lamps
+	local condition_comparator = cb.circuit_condition.condition.comparator
+
 	if cb.circuit_condition.condition.first_signal.name == _M.EVERYTHING.name then
 		lamp_type = "highest"
-	elseif cb.circuit_condition.condition.comparator == "=" then
+	elseif condition_comparator == "=" then
 		lamp_type = "highest_count"
-	elseif cb.circuit_condition.condition.comparator == "≠" then
+	elseif condition_comparator == "≠" then
 		lamp_type = "highest_present"
-	elseif cb.circuit_condition.condition.comparator == ">" then
+	elseif condition_comparator == ">" then
 		lamp_type = "signal_present"
 	end
 
-	-- check cache state for existing lamps
+	-- if lamp_type is not one of the above then return false [https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63ceddab9e540534a4b8e92d]
+	-- circuit_condition can be item < 0 - i.e. the default condition for a new lamp
+	if lamp_type == nil then return false end
+
+	-- check cache state for existing lamps for the corresponding lamp_type
 	-- if present and valid then return false
 	local existing_lamp = cache.__cache_entities[lamp_type]
 	if rawget(cache, lamp_type) and existing_lamp and existing_lamp.valid then
@@ -124,6 +130,7 @@ function _M.migrate_lamp(lamp)
 		return true
 	end
 	-- TODO: guess value and valid fields?
+	-- TODO: consider dropping all signal cache lamps instead of migrating
 end
 
 ---@alias SignalsCacheState_Verify
