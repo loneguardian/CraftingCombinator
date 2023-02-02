@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.3.6
+Version: 0.4.0
 Date: ????
-  Changes:
+  Info:
+    - Changes dependency of Rusty's Locale Utilities to Xeraph's Fork:
+      - The Original Rusty's Locale Utilities can be disabled if there are no other mods that depends on it.
+      - Similarly, you can ignore sync mod's suggestion to enable the original Rusty's Locale Utilities if you are migrating a save.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.5
 Date: 2023-01-25

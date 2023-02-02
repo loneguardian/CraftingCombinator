@@ -1,4 +1,4 @@
-local icons = require '__rusty-locale__.icons'
+local icons = require '__rusty-locale-xeraph__.icons'
 
 local config = require 'config'
 local MOD_PATH = config.MOD_PATH
