@@ -703,6 +703,8 @@ function _M:insert_items(recipe)
 			end
 		end
 	end
+
+	-- TODO: insert items into assembler's output inventory too? - e.g. SE Delivery Capsules
 end
 
 function _M:move_items()
