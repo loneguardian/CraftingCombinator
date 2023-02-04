@@ -188,14 +188,13 @@ end
 ---Called when a cc entity is mined by player during on_player_mined_entity
 ---@param uid uid uid for cc entity
 ---@param player_index uint
----@return boolean true when successfully mined
+---@return boolean #`true` when module chest is successfully mined, `false` when failed
 function _M.mine_module_chest(uid, player_index)
 	if player_index then
 		local player = game.get_player(player_index) --[[@as LuaPlayer]]
 		local combinator = global.cc.data[uid]
-		local success = player.mine_entity(combinator.module_chest)
-		if success then
-			return success
+		if player.mine_entity(combinator.module_chest) == true then
+			return true
 		else
 			-- Clone the combinator entity as replacement
 			-- Set the skip_clone_helper tag
@@ -227,6 +226,7 @@ function _M.mine_module_chest(uid, player_index)
 			global.main_uid_by_part_uid[combinator.module_chest.unit_number] = new_uid
 
 			old_entity.destroy()
+			return false
 		end
 	end
 end

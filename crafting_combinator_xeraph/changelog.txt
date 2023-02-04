@@ -1,14 +1,15 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.1
-Date: ????
-  Changes:
+Date: 2023-02-04
+  Bugfixes:
+    - Fixed incomplete crafting combinator mining by Nanobots (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63ddb2d302284dc0de4b221c)
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
 Date: 2023-02-02
   Info:
     - Changes dependency of Rusty's Locale Utilities to Xeraph's Fork:
-      - The Original Rusty's Locale Utilities can be disabled if there are no other mods that depends on it.
-      - Similarly, you can ignore sync mod's suggestion to enable the original Rusty's Locale Utilities if you are migrating a save.
+      - The Original Rusty's Locale Utilities can be disabled if there are no other mods that depends on it
+      - Similarly, you can ignore sync mod's suggestion to enable the original Rusty's Locale Utilities if you are migrating a save
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.5
 Date: 2023-01-25

@@ -178,15 +178,27 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 
 	if entity_name == config.CC_NAME then
 		---@type uid
-		local uid = entity.unit_number
-		local module_chest = global_cc.data[uid].module_chest
+		local cc_uid = entity.unit_number
+		local module_chest = global_cc.data[cc_uid].module_chest
 		local module_chest_uid = module_chest.unit_number
 		if event_name == defines.events.on_player_mined_entity then
-			-- Need to mine module chest first, success == true
-			if not cc_control.mine_module_chest(uid, event.player_index) then
-				-- Unable to mine module chest, cc cloned and replaced - remove cc from buffer, then return
-				event.buffer.remove({name=config.CC_NAME, count=1})
-				return
+			local cc_state = global.cc.data[cc_uid]
+			-- Check module_chest_mined_by_player tag
+			-- Skip module_chest mining if this event originated from module_chest mining
+			if not cc_state.module_chest_mined_by_player then
+				-- Apply cc_mined_by_player tag
+				cc_state.cc_mined_by_player = true
+				-- Attempt to mine
+				if not cc_control.mine_module_chest(cc_uid, event.player_index) then
+					-- Unable to mine module chest, cc already cloned and replaced
+					-- Remove item from buffer
+					event.buffer.remove({name=config.CC_NAME, count=1})
+
+					-- Remove tags and return
+					cc_state.cc_mined_by_player = nil
+					cc_state.module_chest_mined_by_player = nil
+					return
+				end
 			end
 		end
 		if event_name == defines.events.on_entity_died
@@ -195,25 +207,47 @@ local function on_destroyed(event) -- on_entity_died, on_player_mined_entity, on
 			cc_control.update_chests(entity_surface, module_chest, true)
 			module_chest.destroy()
 		end
-		if event_name ~= defines.events.on_entity_died then -- need state data until post_entity_died
+		-- clear CcState except for on_entity_died - need state data until post_entity_died
+		if event_name ~= defines.events.on_entity_died then
 			cc_control.destroy(entity)
 		end
 		global.main_uid_by_part_uid[module_chest_uid] = nil
 	elseif entity_name == config.MODULE_CHEST_NAME then
-		local uid = entity.unit_number
+		local module_chest_uid = entity.unit_number
 		if event_name == defines.events.on_player_mined_entity then
-			-- This should only be called from cc's mine_module_chest() method after mine_entity() is successful
-			-- Remove one cc from buffer because cc is the mine product
+			-- Normally, this should only be triggered from cc's mine_module_chest() method after mine_entity() is successful
+			-- One cc item is always removed from buffer because cc is the mine product for module_chest entity
 			event.buffer.remove({name=config.CC_NAME, count=1})
+
+			-- Nanobots uses player.mine_entity() for automated deconstruction
+			-- Hence the need to do a callback if this event is not triggered from cc's on_player_mined_entity event
+			local cc_uid = global.main_uid_by_part_uid[module_chest_uid]
+			local cc_state = cc_uid and global_cc.data[cc_uid]
+			-- Check cc_mined_by_player tag
+			if cc_state and not cc_state.cc_mined_by_player then
+				-- Apply tag to indicate module_chest has been mined
+				cc_state.module_chest_mined_by_player = true
+				local player_id = event.player_index
+				if player_id then
+					if not game.get_player(player_id).mine_entity(cc_state.entity) then
+						-- Player mining for cc entity should always be successful, cc item should spill on the floor on overflow
+						-- Keeping this part just in case player mining failed
+						-- TODO: need to reverse module_chest mining if mine_entity can fail for cc entity
+						cc_state.cc_mined_by_player = nil
+						cc_state.module_chest_mined_by_player = nil
+						return
+					end
+				end
+			end
 		elseif event_name == defines.events.on_robot_mined_entity
 		or event_name == defines.events.script_raised_destroy then
-			local cc_entity = global_cc.data[global.main_uid_by_part_uid[uid]].entity
+			local cc_entity = global_cc.data[global.main_uid_by_part_uid[module_chest_uid]].entity
 			if cc_entity and cc_entity.valid then
 				cc_control.destroy(cc_entity.unit_number)
 				cc_entity.destroy()
 			end
 		end
-		global.main_uid_by_part_uid[uid] = nil
+		global.main_uid_by_part_uid[module_chest_uid] = nil
 	elseif entity_name == config.RC_NAME then
 		local output_proxy = global.rc.data[entity.unit_number].output_proxy
 		local output_proxy_uid = output_proxy.unit_number
