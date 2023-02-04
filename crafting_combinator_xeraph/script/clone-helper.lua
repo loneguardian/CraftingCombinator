@@ -232,6 +232,14 @@ local on_entity_cloned = function(event)
 
     if not (ph_type and state_type) then return end
 
+    -- check for skip_clone_helper tag
+    if new_entity_name == config.CC_NAME then
+        if global_cc_data[old_uid].skip_clone_helper then
+            global_cc_data[old_uid].skip_clone_helper = nil
+            return
+        end
+    end
+
     local ph, old_main_uid = get_ph(ph_type, old_uid, new_entity_name, current)
     ---@cast ph PhCombinator|PhCache
     update_ph(ph, new_entity, old_uid, old_main_uid)
