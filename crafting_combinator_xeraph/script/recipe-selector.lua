@@ -88,13 +88,20 @@ end
 local signal_cache = {}
 function _M.get_signal(recipe)
 	local signal = signal_cache[recipe]
-	if not signal then
-		signal = {
-			name = recipe,
-			type = (game.item_prototypes[recipe] and 'item') or (game.fluid_prototypes[recipe] and 'fluid') or 'virtual'
-		}
-		signal_cache[recipe] = signal
+	if signal == nil then
+		-- check recipe_name in item > fluid > virtual signals
+		local type = (game.item_prototypes[recipe] and 'item') or (game.fluid_prototypes[recipe] and 'fluid') or (game.virtual_signal_prototypes[recipe] and 'virtual')
+		if type == nil then
+			signal_cache[recipe] = false
+		else
+			signal = {
+				name = recipe,
+				type = type
+			}
+			signal_cache[recipe] = signal
+		end
 	end
+	if not signal then return end
 	return signal
 end
 
