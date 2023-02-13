@@ -621,23 +621,33 @@ function _M:set_recipe(current_tick)
 	return true
 end
 
-function _M:remove_modules(recipe)
+---Remove modules based on recipe
+---@param recipe LuaRecipe
+---@param forced boolean? If `true` then module limitation is not checked
+function _M:remove_modules(recipe, forced)
 	local target = self.inventories.module_chest
 	local inventory = self.inventories.assembler.modules
 	for i = 1, #inventory do
 		local stack = inventory[i]
-		if stack.valid_for_read then
+		if not stack.valid_for_read then goto next_slot end
+		if forced == true then
+			goto remove_module
+		else
 			local limitations = util.module_limitations()[stack.name]
-			--TODO: Deal with not enough space in the chest
-			if limitations and not limitations[recipe.name] then
-				local r = target.insert(stack)
-				if r < stack.count then
-					stack.count = stack.count - r
-				else
-					stack.clear()
-				end
-			end
+			-- if module has a whitelist, and recipe is not in whitelist, remove module
+			if limitations and not limitations[recipe.name] then goto remove_module end
 		end
+
+		::remove_module::
+		local r = target.insert(stack)
+		if r < stack.count then
+			stack.count = stack.count - r
+		else
+			stack.clear()
+		end
+
+		--TODO: Deal with not enough space in the chest
+		::next_slot::
 	end
 end
 
@@ -645,13 +655,25 @@ function _M:insert_modules()
 	local inventory = self.inventories.module_chest
 	if inventory.is_empty() then return end
 	local target = self.inventories.assembler.modules
+	-- force remove all modules if assembler still has modules
+	-- to make into a combinator setting? TODO: evaluate computational cost)
+	if not target.is_empty() then
+		_M.remove_modules(self, nil, true)
+	end
+	local target_slots = #target
+	local inserted = 0
 	for i = 1, #inventory do
 		local stack = inventory[i]
-		if stack.valid_for_read then
-			local r = target.insert(stack)
-			if r < stack.count then stack.count = stack.count - r
-			else stack.clear(); end
-		end
+		if not stack.valid_for_read then goto next_slot end
+
+		local r = target.insert(stack)
+		if r < stack.count then stack.count = stack.count - r
+		else stack.clear(); end
+
+		inserted = inserted + r
+		if inserted >= target_slots then break end
+		-- can it be more than one per stack? (TODO: use inventory.is_full() if this fails)
+		::next_slot::
 	end
 end
 
