@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.3
-Date: ????
+Date: 2023-02-13
   Bugfixes:
     - Fixed productivity modules disappearing due to recipe changes (https://mods.factorio.com/mod/crafting_combinator_xeraph/discussion/63e93020e1bed1cf129cdf2a)
 ---------------------------------------------------------------------------------------------------
