@@ -496,13 +496,12 @@ end
 function _M:set_recipe(current_tick)
 	-- Check sticky state and return early if still sticky
 	if self.sticky then
-		-- craft-n-before-switch
-		if current_tick >= self.unstick_at_tick then
-			self.sticky = false
-			self.allow_sticky = false
-		else
-			return true
-		end
+		-- craft-n-before-switch: if still within sticky period then return early
+		if current_tick < self.unstick_at_tick then return true end
+		
+		-- else: disable sticky mode and disallow sticky mode for one update cycle
+		self.sticky = false
+		self.allow_sticky = false
 	end
 
 	-- Update/get cc recipe
@@ -536,9 +535,11 @@ function _M:set_recipe(current_tick)
 
 	if recipe and (recipe.hidden or not recipe.enabled) then recipe = nil; end
 
-	-- If no recipe selected and no last_assembler_recipe cached then return. This bypasses the need
-	-- to call get_recipe() for every update. However, manually set assemblers when no recipe is
-	-- selected will not be automatically cleared by cc due to this return behaviour.
+	-- If no recipe selected AND no last_assembler_recipe cached then return.
+	-- This bypasses the need to call get_recipe() for every update.
+	-- However, manually setting recipe for assemblers does not trigger an event
+	-- thus it is currently not possible to invalidate the last_assembler_recipe cache.
+	-- As a result, manually set assemblers will not be automatically cleared by cc due to this return behaviour
 	if (not recipe) and (not self.last_assembler_recipe) then return true end
 
 	-- Get current assembler recipe
@@ -548,11 +549,10 @@ function _M:set_recipe(current_tick)
 	-- If selected recipe is same as current_assembler_recipe then return
 	if (recipe == current_assembler_recipe) then return true end
 
-	-- set_recipe() decision proper:
-	-- Switch 1: Assembler has a current recipe, and requires a change of recipe or clearing of recipe
-	if current_assembler_recipe and ((not recipe) or (recipe ~= current_assembler_recipe)) then
-
-		-- Check craft-n-before-switch
+	-- set_recipe decisions:
+	-- Condition 1: Assembler has a current recipe, and requires a change or clearing of recipe
+	if current_assembler_recipe then
+		-- Check craft-n-before-switch, if enter sticky mode then return
 		if self.allow_sticky and self.settings.craft_n_before_switch > 0 then
 			-- calculate unstick_at_tick
 			local ticks_per_craft = current_assembler_recipe.energy * 60 / assembler.crafting_speed
@@ -583,26 +583,30 @@ function _M:set_recipe(current_tick)
 		if self.settings.discard_fluids then
 			for i = 1, #self.assembler.fluidbox do self.assembler.fluidbox[i] = nil; end
 		end
+	end
 
-		-- Move modules if necessary
-		if recipe then self:move_modules(recipe); end
+	-- Condition 2: Recipe will be set/changed -> check and remove modules
+	if recipe then
+		self:remove_modules(recipe)
 	end
 
 	-- Finally attempt to switch/clear the recipe
 	self.assembler.set_recipe(recipe)
 
+	-- Post set_recipe cleanup:
 	-- Check if assembler successfully switched recipe
 	local new_assembler_recipe = self.assembler.get_recipe()
 	local assembler_has_recipe = false
 
-	if new_assembler_recipe and new_assembler_recipe ~= recipe then -- failed to change recipe?
+	if new_assembler_recipe ~= recipe then -- failed to change recipe?
 		self.assembler.set_recipe(nil) -- failsafe for setting the wrong/forbidden recipe??
 		--TODO: Some notification?
 		self.last_assembler_recipe = nil
 		assembler_has_recipe = false
 	else
+		-- update cached assembler recipe
 		self.last_assembler_recipe = new_assembler_recipe
-		assembler_has_recipe = true
+		assembler_has_recipe = (recipe ~= nil)
 	end
 
 	if assembler_has_recipe then
@@ -611,12 +615,13 @@ function _M:set_recipe(current_tick)
 		self:insert_items(new_assembler_recipe)
 	end
 
+	-- allow sticky for next update cycle
 	self.allow_sticky = true
 
 	return true
 end
 
-function _M:move_modules(recipe)
+function _M:remove_modules(recipe)
 	local target = self.inventories.module_chest
 	local inventory = self.inventories.assembler.modules
 	for i = 1, #inventory do
@@ -638,9 +643,8 @@ end
 
 function _M:insert_modules()
 	local inventory = self.inventories.module_chest
-	if inventory.is_empty() then return; end
+	if inventory.is_empty() then return end
 	local target = self.inventories.assembler.modules
-
 	for i = 1, #inventory do
 		local stack = inventory[i]
 		if stack.valid_for_read then
