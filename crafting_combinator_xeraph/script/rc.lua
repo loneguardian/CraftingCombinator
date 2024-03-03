@@ -55,7 +55,51 @@ function _M.get_rc_slot_count()
 	return _rc_slot_count
 end
 
+local function add_compakt_circuits_integration()
+	if not remote.interfaces["compaktcircuit"] or not remote.interfaces["compaktcircuit"]["add_combinator"] then
+		return
+	end
+
+	local driver = {
+		name = config.RC_NAME,
+		packed_names = { config.RC_NAME_PACKED, config.RC_PROXY_NAME },
+		interface_name = config.RC_NAME
+	}
+	remote.call("compaktcircuit", "add_combinator", driver)
+
+	remote.add_interface(config.RC_NAME,
+		{
+			get_info = function(entity)
+				return {
+					settings = util.deepcopy(global.rc.data[entity.unit_number].settings),
+				}
+			end,
+
+			---@param surface LuaSurface
+			---@param position MapPosition
+			---@param force LuaForce
+			create_packed_entity = function(info, surface, position, force)
+				local packed_input = assert(surface.create_entity {
+					name = config.RC_NAME_PACKED,
+					force = force,
+					position = position,
+					raise_built = false,
+				}, "packed entity not built")
+
+				_M.create(packed_input, info.settings)
+
+				return packed_input
+			end,
+
+			create_entity = function(info, surface, force)
+				error("not implemented")
+			end
+
+		})
+end
+
 function _M.on_load(skip_set_mt)
+	add_compakt_circuits_integration()
 	local global_data = global.rc.data
 	if skip_set_mt then return end
 	setmetatable(global_data, global_data_mt)

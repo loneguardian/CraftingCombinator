@@ -37,7 +37,8 @@ local function on_load(forced, skip_set_mt)
 			local entity = event.moved_entity
 			local combinator
 			if entity.name == config.CC_NAME then combinator = global.cc.data[entity.unit_number]
-			elseif entity.name == config.RC_NAME then combinator = global.rc.data[entity.unit_number]; end
+			elseif entity.name == config.RC_NAME then combinator = global.rc.data[entity.unit_number]
+			elseif entity.name == config.RC_NAME_PACKED then combinator = global.rc.data[entity.unit_number]; end
 			if combinator then combinator:update_inner_positions(); end
 		end)
 	end
@@ -108,7 +109,7 @@ local function on_built(event)
 	if entity_name == config.CC_NAME then
 		local tags = event.tags
 		cc_control.create(entity, tags);
-	elseif entity_name == config.RC_NAME then
+	elseif entity_name == config.RC_NAME or entity_name == config.RC_NAME_PACKED then
 		local tags = event.tags
 		rc_control.create(entity, tags);
 	else
@@ -388,6 +389,7 @@ end)
 local filter_built_destroyed = {
 	{filter = "name", name = config.CC_NAME},
 	{filter = "name", name = config.RC_NAME},
+	{filter = "name", name = config.RC_NAME_PACKED},
 	{filter = "name", name = config.MODULE_CHEST_NAME},
 	{filter = "name", name = config.RC_PROXY_NAME},
 	{filter = "name", name = config.SIGNAL_CACHE_NAME},
