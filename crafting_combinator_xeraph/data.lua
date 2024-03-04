@@ -44,6 +44,28 @@ for direction, definition in pairs(rc.multiply_symbol_sprites) do
 	rc.multiply_symbol_sprites[direction] = definition.hr_version
 end
 
+local trans = {
+	filename = MOD_PATH .. '/graphics/trans.png',
+	width = 1,
+	height = 1,
+}
+
+local rc_packed = table.deepcopy(data.raw['arithmetic-combinator']['arithmetic-combinator'])
+rc_packed.name = config.RC_NAME_PACKED
+rc_packed.flags = { "placeable-off-grid", "hidden", "hide-alt-info", "not-on-map", "not-upgradable",
+	"not-deconstructable", "not-blueprintable" }
+rc_packed.collision_mask = {}
+rc_packed.collision_box = nil
+rc_packed.minable = nil
+rc_packed.selectable_in_game = false
+rc_packed.sprites = trans
+rc_packed.multiply_symbol_sprites = trans
+rc_packed.divide_symbol_sprites = trans
+rc_packed.plus_symbol_sprites = trans
+rc_packed.minus_symbol_sprites = trans
+rc_packed.modulo_symbol_sprites = trans
+rc_packed.draw_circuit_wires = false
+
 local rc_item = table.deepcopy(data.raw['item']['arithmetic-combinator'])
 rc_item.name = rc.name
 rc_item.place_result = rc.name
@@ -57,11 +79,6 @@ rc_recipe.result = rc.name
 table.insert(data.raw['technology']['circuit-network'].effects, {type = 'unlock-recipe', recipe = rc.name})
 
 
-local trans = {
-	filename = MOD_PATH .. '/graphics/trans.png',
-	width = 1,
-	height = 1,
-}
 local con_point = {
 	wire = {
 		red = {0, 0},
@@ -76,7 +93,7 @@ local con_point = {
 
 data:extend {
 	cc, cc_item, cc_recipe,
-	rc, rc_item, rc_recipe,
+	rc, rc_packed, rc_item, rc_recipe,
 	{
 		type = 'item',
 		name = config.MODULE_CHEST_NAME,

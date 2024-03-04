@@ -4,6 +4,7 @@ local c = {
 	CC_CRAFT_N_BEFORE_SWITCH_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:craft-n-before-switch-default',
 	CC_INPUT_BUFFER_ON_SET_RECIPE_DEFAULT_NAME = 'crafting_combinator:crafting-combinator:input-buffer-on-set-recipe-default',
 	RC_NAME = 'crafting_combinator:recipe-combinator',
+	RC_NAME_PACKED = 'crafting_combinator:recipe-combinator:packed',
 	MODULE_CHEST_NAME = 'crafting_combinator:module-chest',
 	MODULE_CHEST_SIZE_NAME ='crafting_combinator:module-chest-size',
 	REFRESH_RATE_CC_NAME = 'crafting_combinator:refresh-rate-cc',
